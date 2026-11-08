@@ -959,7 +959,7 @@ function paintSound() {
   $('#musicVolumeText').textContent = `${Math.round(gameSound.volume * 100)}%`;
   $('#musicSource').href = gameSound.track.source;
   $('#musicCreditTitle').textContent = gameSound.track.title + (gameSound.track.author ? ` · ${gameSound.track.author}` : '');
-  $('#musicStatus').textContent = !gameSound.enabled ? '背景音乐已关闭' : gameSound.error || (gameSound.playing ? '正在播放' : gameSound.unlocked ? '音乐已暂停 / 等待播放' : '开始游戏后播放');
+  $('#musicStatus').textContent = !gameSound.enabled ? '背景音乐已关闭' : gameSound.error || (gameSound.playing ? '正在播放' : gameSound.unlocked ? '音乐已暂停 / 等待播放' : '点击页面后播放');
   $('#btnAudio').classList.toggle('is-playing', gameSound.playing);
 }
 let audioOpener = null;
