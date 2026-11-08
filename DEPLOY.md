@@ -12,6 +12,8 @@
 
 ## Docker
 
+仓库也提供 `render.yaml`，可在 Render 中连接此私有 GitHub 仓库并创建 Blueprint。它默认选择免费 Node 实例，密钥在控制台单独填入。免费实例不挂载持久卷；需要长期保存房间和用量时，改用带持久卷的实例并配置 `DATA_DIR`。
+
 在项目目录构建：
 
 ```sh

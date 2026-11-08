@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: tonight-turtle-soup
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/meta
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: NODE_ENV
+        value: production
+      - key: MODEL_PROVIDER
+        value: openai
+      - key: OPENAI_MODEL
+        value: gpt-5.4-mini
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: VOLC_SPEECH_API_KEY
+        sync: false
+      - key: VOLC_TTS_RESOURCE
+        value: seed-tts-2.0
+      - key: VOLC_TTS_SPEAKER
+        value: zh_male_xuanyijieshuo_uranus_bigtts
+      - key: VOLC_TTS_NAME
+        value: 悬疑解说 2.0
+      - key: DAILY_LLM_LIMIT
+        value: 2000
+      - key: DAILY_TTS_CHAR_LIMIT
+        value: 20000
