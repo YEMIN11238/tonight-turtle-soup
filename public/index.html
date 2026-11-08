@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
+<title>今晚喝什么汤 · AI 海龟汤推理室</title>
+<meta name="description" content="今晚喝什么汤：翻开一段旧事，与 AI 主持人和朋友一起，用问题接近真相。" />
+<link rel="preload" as="image" href="assets/lamplit-desk.webp" />
+<link rel="preload" as="image" href="assets/antique-book.webp" />
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="opening.css" />
+<link rel="stylesheet" href="playfield.css" />
+<link rel="stylesheet" href="sound.css" />
+<link rel="stylesheet" href="rooms.css" />
+<link rel="stylesheet" href="lamplight.css" />
+</head>
+<body data-view="lobby">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M5 13v7h14v-7"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14l-4-4M20 16H6l4 4"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l4 6M21 9l-4 6"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13M9 9l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-notes" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="topbar">
+    <a class="brand" href="#" id="toHome" aria-label="今晚喝什么汤 · 返回首页">
+      <span class="seal" aria-hidden="true">汤</span><span class="brand-name">今晚喝什么汤</span><span class="brand-sub">AI 海龟汤推理室</span>
+    </a>
+    <nav class="nav">
+      <a href="#" id="navLobby" class="active">房间</a>
+      <a href="#" id="navHome">档案库</a>
+      <a href="#" id="navRoom" class="hidden">推理室</a>
+      <button type="button" id="btnCoopHeader" class="room-code hidden" title="复制房间邀请链接"></button>
+      <button type="button" id="btnVoice" class="icon-btn" aria-label="裁判语音播报" title="裁判语音播报"><svg><use href="#i-sound"/></svg></button>
+      <button type="button" id="btnAudio" class="icon-btn audio-settings" aria-label="音乐与声音设置" aria-controls="audioPanel" aria-expanded="false" title="音乐与声音设置"><svg><use href="#i-music"/></svg><span class="music-indicator" aria-hidden="true"></span></button>
+      <span id="mode" class="tag"></span>
+    </nav>
+  </header>
+
+  <!-- ============ 房间入口 ============ -->
+  <main id="viewLobby" class="view lobby-view">
+    <section class="entry-stage" aria-labelledby="entryTitle">
+      <div class="entry-kicker">点书页边缘，翻看今夜故事</div>
+      <div class="book-prop">
+        <img src="assets/antique-book.webp" alt="台灯暖光下摊开的旧书，等待翻开今夜的故事" width="1536" height="1024" decoding="async" />
+        <div class="book-left-copy" aria-hidden="true"><span class="book-library">夜 读 故 事 集</span><strong>今晚<br>喝什么汤</strong><span class="book-rule"></span><p>每一碗汤，<br>都有另一种真相。</p><span class="book-stamp">汤</span></div>
+        <div class="book-copy"><div class="eyebrow" id="entryTag">今夜故事 · 待开启</div><h1 id="entryTitle">正在调取卷宗</h1><p id="entrySurface"></p><span class="book-page-no" id="entryPage">01 / 05</span></div>
+        <button type="button" id="btnBookPrev" class="book-edge book-edge-prev" aria-label="翻到上一章" title="上一章"><span aria-hidden="true">‹</span><small>上一章</small></button>
+        <button type="button" id="btnBookNext" class="book-edge book-edge-next" aria-label="翻到下一章" title="下一章"><span aria-hidden="true">›</span><small>下一章</small></button>
+      </div>
+      <p class="entry-summary" id="entrySummary"></p>
+      <div id="codeBox" class="codebox hidden"><label for="code">体验口令</label><input id="code" autocomplete="off" placeholder="请输入口令" /></div>
+      <div class="entry-ready"><span class="ready-dot"></span><span id="entryReady">正在连接推理室…</span></div>
+      <button type="button" id="btnStart" class="button entry-start" disabled>翻开故事 <svg class="arrow"><use href="#i-arrow"/></svg></button>
+      <button type="button" id="btnResume" class="entry-resume hidden">继续上次推理 <span id="resumeCase"></span><svg><use href="#i-arrow"/></svg></button>
+      <div class="entry-options"><button type="button" id="btnArchive">打开档案库</button><button type="button" id="btnRandom">随机一宗 ↻</button></div>
+      <button type="button" id="btnCoop" class="coop-entry hidden">邀请好友一起推理 <span>↗</span></button>
+    </section>
+    <footer class="entry-bottom"><div class="entry-player"><span class="entry-avatar">我</span><div>你<small>单人推理 · 已就绪</small></div></div><p>先读案情，再问真相。<br /><span id="entryMode"></span></p></footer>
+  </main>
+
+  <!-- ============ 汤面开场 ============ -->
+  <main id="viewIntro" class="view intro-view hidden" aria-label="汤面开场">
+    <div class="intro-dust" aria-hidden="true"></div>
+    <header class="intro-header"><button type="button" id="btnIntroBack">← 返回房间</button><span id="introTitle"></span><div class="intro-sound-controls"><button type="button" id="btnIntroReplay" class="intro-replay" title="重新朗读本页" aria-label="重播本页旁白">重播</button><button type="button" id="btnIntroAudio" class="icon-btn audio-settings" aria-label="音乐与声音设置" aria-controls="audioPanel" aria-expanded="false"><svg><use href="#i-music"/></svg></button><button type="button" id="btnIntroVoice" class="icon-btn" aria-label="语音播报"><svg><use href="#i-sound"/></svg></button></div></header>
+    <section class="intro-stage" id="introStage" aria-label="点击继续阅读汤面"><div class="intro-text" id="introText" aria-live="polite" aria-atomic="false"></div></section>
+    <footer class="intro-bottom"><div class="intro-controls"><button type="button" id="btnIntroNext">点击继续 / 空格</button><button type="button" id="btnIntroAuto" aria-pressed="true">暂停自动</button></div><span id="introCount" class="intro-counter"></span><button type="button" id="btnIntroEnter">进入推理室 <svg><use href="#i-arrow"/></svg></button></footer>
+  </main>
+
+  <!-- ============ 档案库 ============ -->
+  <main id="viewHome" class="view hidden">
+    <section class="home-intro">
+      <div><div class="eyebrow">午夜档案馆 / CASE ARCHIVE</div><h1>今夜，从哪一宗开始？</h1></div>
+      <p class="subtle">一段看似平常的故事，藏着另一种解释。<br />翻开卷宗，用问题接近真相。</p>
+    </section>
+    <div id="featured"></div>
+    <div class="section-line"><h2>其他未结卷宗</h2><span id="restCount" class="subtle"></span></div>
+    <section id="caseGrid" class="case-grid"></section>
+    <details class="rules">
+      <summary>怎么玩</summary>
+      <ol>
+ <li>读汤面：一个看似离奇的结局。</li>
+        <li>向裁判提问，只能是是非题。裁判回答 <b>是 / 否 / 无关 / 无法判断</b>。不合规的问题会被退回，不扣次数。</li>
+ <li>问中关键事实，右侧卷宗栏会收录一张线索卡，真相还原度随之推进。</li>
+ <li>卡住了可以用提示（共 3 次）。</li>
+ <li>觉得想通了就提交推理（最多 3 次）。说中核心真相且覆盖足够多的事实即可结案。</li>
+      </ol>
+    </details>
+    <footer class="footer"><span>只问可以用「是 / 否」回答的问题。</span><span>事实由裁判确认，推理由你完成。</span></footer>
+  </main>
+
+  <!-- ============ 推理室 ============ -->
+  <main id="viewRoom" class="view hidden">
+    <section class="case-scene" id="scene" aria-hidden="true">
+      <div class="scene-fallback"><span id="fbNo"></span><b id="fbTitle"></b></div>
+      <img id="sceneImg" alt="" decoding="async" />
+      <div class="scene-copy" id="sceneCopy"><h1 id="sceneTitle"></h1><p id="sceneTagline"></p></div>
+    </section>
+    <div class="room-top">
+      <div class="breadcrumb"><span class="room-live"><span></span>推理进行中</span><h1 id="crumbCase"></h1><a href="#" id="crumbHome">更换卷宗 ↗</a></div>
+      <div class="counter" id="counter">剩余提问 <strong id="qleft">40</strong><span>/ <span id="qmax">40</span></span></div>
+    </div>
+    <div class="room-grid">
+      <aside class="case-file" aria-label="本案汤面与提示">
+        <section class="story-strip paper">
+          <div class="file-heading"><span class="label">本案汤面</span><span id="sceneTag"></span></div>
+          <div class="story-body"><p id="surface"></p><button type="button" id="btnFold" class="fold hidden">展开全文<svg><use href="#i-chev"/></svg></button></div>
+          <div class="file-objective"><span>本局目标</span><p>通过提问，还原这段故事的完整真相。</p></div>
+        </section>
+        <div id="hintList" class="hint-list"></div>
+        <div class="case-file-actions">
+          <button type="button" id="btnSwap" class="button quiet small"><svg><use href="#i-swap"/></svg>换一题</button>
+          <button type="button" id="btnGiveup" class="button quiet small"><svg><use href="#i-flag"/></svg>放弃并揭晓</button>
+        </div>
+      </aside>
+      <div class="room-main">
+        <section class="judge" id="judge" aria-live="polite"></section>
+        <form class="composer" id="askForm">
+          <div class="composer-label"><label for="q">向主持人提问</label><span class="optional">Enter 发送 · 是 / 否问题</span></div>
+          <div class="input-row">
+     <input id="q" maxlength="160" placeholder="你想确认什么？" autocomplete="off" enterkeyhint="send" />
+            <button type="button" id="btnMic" class="button secondary icon-only" aria-label="语音输入" title="语音输入"><svg><use href="#i-mic"/></svg></button>
+     <button id="btnAsk" class="button">提问 <svg class="arrow"><use href="#i-arrow"/></svg></button>
+          </div>
+   <div class="actions">
+     <button type="button" id="btnHint" class="button secondary small"><svg><use href="#i-bulb"/></svg>提示 <span id="hleft"></span></button>
+     <button type="button" id="btnSubmit" class="button secondary small"><svg><use href="#i-file"/></svg>提交推理 <span id="sleft"></span></button>
+     <button type="button" id="btnNotes" class="button secondary small notes-btn"><svg><use href="#i-notes"/></svg>线索卷宗 <span id="noteCount" class="count">0</span></button>
+   </div>
+        </form>
+      </div>
+
+      <aside class="notebook" id="notebook" aria-label="线索卷宗">
+ <div class="note-tabs" role="tablist">
+          <button type="button" class="tab active" data-tab="clues" role="tab">线索卷宗</button>
+   <button type="button" class="tab" data-tab="log" role="tab">提问记录 <span id="logCount"></span></button>
+   <button type="button" class="note-close" id="noteClose" aria-label="收起卷宗">收起</button>
+        </div>
+ <div id="tab-clues" class="tabpane">
+   <div class="progress-meta"><span>真相还原度</span><strong id="prog">0%</strong></div>
+   <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+   <div class="note-caption" id="noteCaption"></div>
+          <div id="dims" class="dims"></div>
+          <div id="clues" class="clues"></div>
+   <div id="gapBox"></div>
+   <div class="note-empty" id="noteEmpty"><span class="note-mark">证</span><p></p></div>
+   <div id="nudges" class="nudges"></div>
+        </div>
+        <div id="tab-log" class="tabpane hidden"><ol id="log" class="log"></ol></div>
+      </aside>
+    </div>
+    <footer class="footer"><span>事实由裁判确认，推理由你完成。</span><span id="footMode"></span></footer>
+  </main>
+
+  <!-- ============ 结案 ============ -->
+  <main id="viewEnd" class="view hidden">
+    <section class="end-case" id="endCase"></section>
+  </main>
+</div>
+
+<!-- 提交推理 -->
+<dialog id="submitDlg" class="dlg paper">
+  <form method="dialog" id="submitForm">
+    <div class="eyebrow">SUBMIT · 提交推理</div>
+    <h3>写下你还原的故事</h3>
+    <p class="dlg-lead">发生了什么，为什么。核心真相需要在这里写出来；已经收录的线索可以简写。</p>
+    <textarea id="answer" maxlength="600" rows="7" placeholder="我认为……"></textarea>
+    <div class="dlg-row">
+      <span class="dlg-count"><span id="ansCount">0</span> / 600</span>
+      <button value="cancel" class="button secondary" formnovalidate>再想想</button>
+      <button id="btnDoSubmit" value="ok" class="button dark">提交 <svg class="arrow"><use href="#i-arrow"/></svg></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="roomDlg" class="dlg paper room-dialog">
+  <form id="roomForm">
+    <div class="eyebrow">THE ROOM · 共同推理</div><button type="button" id="btnRoomDlgClose" aria-label="关闭房间设置">×</button>
+    <h3>留一个名字，坐下来。</h3><p class="dlg-lead">最多 8 位同伴，共用问题、提示和线索。房主打开卷宗，大家一起问出真相。</p>
+    <label for="playerName">你的名字</label><input id="playerName" maxlength="12" placeholder="怎么称呼你？" autocomplete="nickname" required />
+    <label for="joinCode">已有房间号</label><input id="joinCode" maxlength="8" placeholder="填入 8 位房间号，或创建新房间" autocomplete="off" />
+    <div class="dlg-row"><button type="submit" value="join" class="button secondary" id="btnJoinRoom">加入房间</button><button type="submit" value="create" class="button dark" id="btnCreateRoom">创建房间</button></div>
+    <p id="roomFormError" role="status"></p>
+  </form>
+</dialog>
+
+<section id="roomDock" class="room-dock hidden" aria-label="房间成员">
+  <div class="room-dock-inner"><div class="room-members" id="roomMembers"></div><div class="room-tools"><button type="button" id="btnInvite">邀请同伴 ↗</button><button type="button" id="btnRoomMic"><svg><use href="#i-mic"/></svg><span>加入语音</span></button><button type="button" id="btnRoomChat" aria-expanded="true" aria-controls="roomChat">讨论 <span id="chatUnread"></span></button><button type="button" id="btnLeaveCoop">离开</button></div></div>
+</section>
+<section id="roomChat" class="room-chat hidden" aria-label="房间讨论">
+  <header><span>推理室 · 讨论</span><button type="button" id="btnChatClose" aria-label="收起讨论">−</button></header>
+  <div id="chatMessages" class="chat-messages" role="log" aria-live="polite"></div>
+  <form id="chatForm"><label class="sr-only" for="chatText">发言</label><input id="chatText" maxlength="200" placeholder="和同伴说点什么…" autocomplete="off" /><button type="submit" aria-label="发送讨论">↗</button></form>
+</section>
+
+<section id="audioPanel" class="sound-panel hidden" role="dialog" aria-label="音乐与声音设置">
+  <header><h2>夜色与声音</h2><button type="button" id="btnAudioClose" aria-label="关闭声音设置">×</button></header>
+  <label class="sound-switch"><span><b>背景音乐</b><small>低声、缓慢的悬疑氛围</small></span><input id="musicEnabled" type="checkbox" /></label>
+  <label class="sound-field" for="musicTrack">氛围曲目<select id="musicTrack"></select></label>
+  <label class="sound-field" for="musicVolume"><span>背景音量 <output id="musicVolumeText">22%</output></span><input id="musicVolume" type="range" min="0" max="100" step="1" value="22" /></label>
+  <div class="music-play-row"><span id="musicStatus" role="status">开始游戏后播放</span><button type="button" id="btnMusicPlay" class="button secondary small">试听 / 播放</button></div>
+  <label class="sound-switch voice-switch"><span><b>主持人语音</b><small>播报汤面和裁判回答，可单独关闭</small></span><input id="voiceSetting" type="checkbox" /></label>
+  <div class="music-play-row"><span id="voiceName">正在连接主持人…</span><button type="button" id="btnVoicePreview" class="button secondary small">试听主持人</button></div>
+  <p class="music-credit"><a id="musicSource" href="audio/CREDITS.txt" target="_blank" rel="noopener"><span id="musicCreditTitle"></span></a><br>用户提供音源 · <a href="audio/CREDITS.txt" target="_blank" rel="noopener">文件说明</a><br>语音播报时音乐会自动放轻，离开标签页时暂停。</p>
+</section>
+<div id="toast" class="toast hidden" role="status"></div>
+<script src="app.js" type="module"></script>
+</body>
+</html>

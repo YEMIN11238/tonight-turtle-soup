@@ -1,0 +1,187 @@
+/* 推理室是整屏舞台。入口与档案库保留原来的独立排版。 */
+body[data-view="room"]{overflow:hidden;isolation:isolate;background:#17110b}
+body[data-view="room"]>.wrap{width:min(1640px,calc(100% - 56px))}
+body[data-view="room"] .topbar{height:64px;position:relative;z-index:3;border-bottom-color:#b5966126}
+body[data-view="room"] .brand-sub,body[data-view="room"] #navLobby,body[data-view="room"] #navRoom{display:none}
+body[data-view="room"] .brand-name{font-size:23px}
+body[data-view="room"] .nav{gap:22px;font-size:12px}
+#viewRoom{position:relative;isolation:isolate;height:calc(100dvh - 64px);display:flex;flex-direction:column;padding-bottom:20px;min-height:0}
+#viewRoom>.case-scene{position:fixed;inset:0;width:100%;height:100%;z-index:-1;border:0;border-radius:0;background:#1a130c;pointer-events:none}
+#viewRoom>.case-scene img{width:100%;height:100%;object-fit:cover;filter:saturate(.65);transition:opacity 400ms var(--ease)}
+#viewRoom>.case-scene::after{background:linear-gradient(0deg,#150f08e8 0%,#17110ab8 45%,#130d07cf 100%),radial-gradient(ellipse at 50% 45%,transparent,#140e0780 85%)}
+#viewRoom .scene-copy,#viewRoom .scene-fallback{display:none}
+#viewRoom>.footer{display:none}
+#viewRoom .room-top{flex:none;min-height:76px;padding:13px 0 15px;gap:20px}
+#viewRoom .breadcrumb{gap:17px;min-width:0;flex-wrap:wrap}
+#viewRoom #crumbCase{font-family:var(--font-title);font-size:26px;letter-spacing:3px;line-height:1.4;color:#f1e8d4}
+#viewRoom #crumbHome{font-size:11px;min-height:32px;color:#c3b397;letter-spacing:1px}
+.room-live{display:inline-flex;align-items:center;gap:7px;color:#c7bfb5;font-size:10px;letter-spacing:2px}
+.room-live>span{width:5px;height:5px;border-radius:50%;background:#beb2a4;box-shadow:0 0 10px #c4b6a74d}
+#viewRoom .counter{padding:5px 14px;border:1px solid #b596613d;border-radius:2px;background:#1d160dc4;gap:7px;font-size:11px}
+#viewRoom .counter strong{font-size:30px;color:#e0c38d;line-height:1.4}
+#viewRoom .room-grid{flex:1;min-height:0;display:grid;grid-template-columns:270px minmax(0,1fr) 310px;gap:26px;align-items:start}
+
+/* 左侧是拿在手里的案卷，任务与退出操作留在这里。 */
+.case-file{min-width:0;max-height:100%;overflow:auto;padding:6px 2px 3px;scrollbar-width:thin;scrollbar-color:#b5966155 transparent}
+#viewRoom .story-strip{display:block;width:100%;padding:25px 23px;border:0;border-radius:1px;background:linear-gradient(125deg,#f0e6d1,#dfd2b5);box-shadow:0 12px 32px #0005}
+#viewRoom .story-strip::before{content:"";position:absolute;left:25px;top:-5px;width:39px;height:8px;background:#b49764;box-shadow:0 2px 5px #0003;z-index:1}
+.file-heading{display:flex;flex-direction:column;gap:8px;padding-bottom:16px;border-bottom:1px solid #9e8e6c55}
+#viewRoom .file-heading .label{border:0;padding:0;font-size:21px;letter-spacing:3px;line-height:1.5;color:#3c392e}
+#viewRoom #sceneTag{font-size:10px;letter-spacing:1px;color:#77694e}
+#viewRoom .story-body{margin-top:20px}
+#viewRoom #surface{font-family:var(--font-title);font-size:18px;line-height:1.95;letter-spacing:.5px;color:#332f26}
+#viewRoom .fold{font-size:12px}
+.file-objective{border-top:1px dashed #9e8e6c66;margin-top:25px;padding-top:16px}
+.file-objective>span{font-size:10px;letter-spacing:2px;color:#807255}
+.file-objective>p{font-size:13px;line-height:1.9;color:#5b5340;margin-top:5px}
+.case-file-actions{display:flex;justify-content:center;gap:3px;margin-top:11px;border:1px solid #b596612e;background:#1a130ca8;border-radius:2px}
+.case-file-actions .button{flex:1;min-width:0;padding:0 8px;font-size:12px;color:#cbbd9f}
+.case-file-actions .button svg{width:14px;height:14px}
+#viewRoom .hint-list{gap:8px;margin-top:12px}
+#viewRoom .hint-item{display:block;font-size:13px;padding:12px;line-height:1.8;background:#271e14e6}
+#viewRoom .hint-item b{display:block;margin-bottom:5px;font-size:11px}
+
+/* 中央只呈现当前回合，底部始终保留提问。 */
+#viewRoom .room-main{display:flex;flex-direction:column;height:100%;min-width:0;min-height:0;gap:18px}
+#viewRoom .judge,#viewRoom .judge.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;min-height:0;margin:0;padding:18px 12px;border:0;border-radius:0;background:none;box-shadow:none;text-align:center;overflow:auto;scrollbar-width:thin;scrollbar-color:#b5966144 transparent}
+#viewRoom .judge>*{flex-shrink:0;max-width:100%}
+.host-presence{display:flex;flex-direction:column;align-items:center;gap:10px;margin:0 auto}
+.host-portrait{width:74px;height:86px;border:1px solid #b39a6d99;border-radius:46px 46px 3px 3px;position:relative;overflow:hidden;background:#251e17;box-shadow:0 7px 28px #0006,0 0 30px #b596610b}
+.host-portrait>span{position:absolute;inset:0;display:grid;place-items:center;color:#d3bd91;font-family:var(--font-title);font-size:32px}
+.host-portrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 28%}
+.host-presence figcaption{display:flex;align-items:center;gap:9px;justify-content:center}
+.host-name{font-family:var(--font-title);font-size:17px;letter-spacing:4px;color:#e1cda6}
+.host-status{font-size:10px;letter-spacing:1px;color:#c1b59b;border-left:1px solid #b5966144;padding-left:9px}
+#viewRoom .judge-empty{width:100%;text-align:center}
+#viewRoom .empty .host-portrait{width:clamp(108px,15vh,146px);height:clamp(128px,18vh,172px);border-radius:80px 80px 3px 3px}
+#viewRoom .judge-empty h2{font-family:var(--font-title);font-size:clamp(24px,2.15vw,34px);letter-spacing:2px;line-height:1.5;color:#f1e7d3;margin:23px 0 10px;text-shadow:0 2px 20px #0007}
+#viewRoom .judge-empty p{font-size:14px;color:#c4b99f;line-height:1.9;margin:0 auto;max-width:460px}
+.idle-caption{display:block;margin-top:25px;color:#b6a78b;letter-spacing:4px;font-family:var(--font-title);font-size:12px}
+#viewRoom .turn-question{margin:8px 0 0;text-align:center;width:100%;max-width:540px}
+#viewRoom .question-meta{justify-content:center;font-size:11px;letter-spacing:1px;color:#bfb399;margin-bottom:10px}
+#viewRoom .question-text{font-size:clamp(20px,1.7vw,27px);font-family:var(--font-title);line-height:1.65;letter-spacing:1px;color:#f0e5ce;text-wrap:pretty;text-shadow:0 2px 15px #0006}
+#viewRoom .answer{border:0;padding:0;line-height:1.4;min-width:150px;margin:0}
+#viewRoom .answer strong{font-size:clamp(78px,11vh,116px);font-weight:500;line-height:1.15;margin:0;text-shadow:0 4px 30px #0008;letter-spacing:4px}
+#viewRoom .answer strong.long{font-size:clamp(34px,4.5vw,51px);line-height:1.4;letter-spacing:3px;margin:5px 0}
+#viewRoom .answer strong.v-invalid{font-size:34px}
+#viewRoom .answer .subtle{font-size:11px;letter-spacing:3px;color:#bfb499;margin-top:9px}
+#viewRoom .answer::after{content:"";display:block;width:45px;height:1px;background:#b596614d;margin:17px auto 0}
+#viewRoom .thinking{font-size:26px;letter-spacing:3px;color:#d4c4a5}
+#viewRoom .reason-line{font-size:13px;line-height:1.8;margin:0;color:#cfc0a2}
+#viewRoom .fact-notice{margin:0;gap:8px;min-height:36px;padding:4px 12px;border:1px solid #c4b7a94d;border-radius:2px;background:#2b1f1299;color:#d8cbbc;font-size:12px}
+#viewRoom .fact-notice.again{background:#241c1366;color:#c6b99f;border-color:#b596613d}
+#viewRoom .composer{flex:none;margin:0;padding:16px 18px 12px;background:linear-gradient(180deg,#271e14ed,#1e170ef5);border:1px solid #b5966159;border-top:2px solid #b5966170;border-radius:3px;box-shadow:0 12px 40px #0005}
+#viewRoom .composer-label{font-size:12px;letter-spacing:1px;margin-bottom:11px;color:#d7c8a8}
+#viewRoom .composer-label .optional{font-size:10px;letter-spacing:.5px;color:#a99d85}
+#viewRoom .input-row{gap:9px}
+#viewRoom .input-row input{min-height:52px;font-size:16px;background:#171009d9;border-color:#b596614d;padding:12px 14px}
+#viewRoom .input-row input:focus-visible{outline:1px solid #d6bd8b;outline-offset:1px}
+#viewRoom .input-row .button{min-height:52px}
+#viewRoom .actions{margin-top:8px;gap:6px}
+#viewRoom .actions .button{background:transparent;border-color:transparent;font-size:12px;min-height:40px;padding:0 10px;gap:6px;color:#cbbd9f}
+#viewRoom .actions #btnSubmit{background:#b5966112;border-color:#b5966133;color:#ddc99f}
+#viewRoom .actions .button:hover:not(:disabled){background:#b596611c}
+
+/* 右侧是收集到的证据，空局也有明确的玩法提示。 */
+#viewRoom .notebook{max-height:100%;overflow:auto;min-width:0;padding:23px 21px;scrollbar-width:thin;scrollbar-color:#a2906d66 transparent;background:linear-gradient(115deg,#eee4cf,#e0d4b9);border:0;border-radius:1px;box-shadow:0 12px 35px #0006}
+#viewRoom .note-tabs{gap:21px}
+#viewRoom .note-tabs .tab{font-size:15px;white-space:nowrap}
+#viewRoom .note-tabs .tab.active{font-size:18px}
+#viewRoom .progress-meta{margin-top:23px;font-size:11px}
+#viewRoom .progress-meta strong{font-size:22px}
+#viewRoom .note-caption{font-size:12px;margin-top:12px;line-height:1.8}
+#viewRoom .dim{font-size:10px;padding:1px 7px}
+#viewRoom .note-empty{flex-direction:column;align-items:center;text-align:center;gap:14px;margin-top:20px;padding:25px 0 20px;border-top:1px dashed #9f907055;line-height:1.9;font-size:13px;color:#756a52}
+#viewRoom .note-mark{width:46px;height:50px;border:1px solid #9b886766;font-family:var(--font-title);font-size:23px;color:#998261;background:none;transform:rotate(-5deg);border-radius:1px}
+#viewRoom .note-empty.has-facts{padding:16px 0;gap:0}
+#viewRoom .note-empty.has-facts .note-mark{display:none}
+body[data-view="room"] .toast{top:78px;bottom:auto;max-width:calc(100% - 32px)}
+#viewRoom .nudges{margin-top:12px;padding-top:15px;border-top:1px solid #9f907033;gap:11px}
+#viewRoom .nudge{font-size:14px;line-height:1.9}
+#viewRoom .evidence-card{padding:13px;background:#f2ead9;box-shadow:0 4px 12px #5b48241a;position:relative}
+#viewRoom .evidence-card p{font-family:var(--font-title);font-size:16px;line-height:1.85}
+#viewRoom .evidence-top,#viewRoom .evidence-source{font-size:10px}
+
+@media(min-width:761px) and (max-width:1099px){
+  body[data-view="room"]>.wrap{width:calc(100% - 36px)}
+  #viewRoom .room-grid{grid-template-columns:210px minmax(0,1fr) 240px;gap:16px}
+  #viewRoom .story-strip{padding:21px 18px}
+  #viewRoom #surface{font-size:16px}
+  #viewRoom .notebook{padding:20px 16px}
+  #viewRoom .note-tabs{gap:14px}
+  #viewRoom .note-tabs .tab{font-size:13px}
+  #viewRoom .note-tabs .tab.active{font-size:16px}
+  #viewRoom .composer{padding:13px}
+  #viewRoom .composer-label .optional{display:none}
+  #viewRoom .input-row{gap:6px}
+  #viewRoom .input-row .button{padding:0 13px}
+  #viewRoom .input-row .icon-only{width:42px;padding:0}
+  #viewRoom .question-text{font-size:21px}
+  #viewRoom .empty .host-portrait{width:104px;height:123px}
+  #viewRoom .judge-empty h2{font-size:25px}
+  #viewRoom #crumbCase{font-size:23px}
+}
+@media(min-width:761px) and (max-height:649px){
+  body[data-view="room"]{overflow:auto}
+  #viewRoom{height:auto}
+  #viewRoom .room-grid{min-height:530px}
+  #viewRoom .room-main{height:530px}
+  #viewRoom .notebook{max-height:530px}
+  .case-file{max-height:530px}
+}
+@media(max-width:760px){
+  body[data-view="room"]{overflow:auto}
+  body[data-view="room"]>.wrap{width:calc(100% - 28px)}
+  body[data-view="room"] .topbar{height:60px}
+  body[data-view="room"] .nav{gap:7px;font-size:11px}
+  #viewRoom{height:auto;min-height:calc(100svh - 60px);padding-bottom:8px}
+  #viewRoom .room-top{min-height:61px;padding:10px 0 12px;gap:10px;align-items:center}
+  #viewRoom .breadcrumb{gap:8px}
+  #viewRoom #crumbCase{font-size:22px;letter-spacing:2px}
+  #viewRoom .room-live,#viewRoom #crumbHome{display:none}
+  #viewRoom .counter{padding:2px 9px;gap:5px;font-size:10px}
+  #viewRoom .counter strong{font-size:23px}
+  #viewRoom .room-grid{display:flex;flex-direction:column;align-items:stretch;gap:12px;flex:auto;min-height:0}
+  .case-file{max-height:none;width:100%;padding:5px 0 0;overflow:visible}
+  #viewRoom .story-strip{padding:15px 17px}
+  .file-heading{flex-direction:row;justify-content:space-between;align-items:baseline;padding:0;border:0;gap:12px}
+  #viewRoom .file-heading .label{font-size:17px;letter-spacing:2px}
+  #viewRoom #sceneTag{font-size:9px;letter-spacing:.5px}
+  #viewRoom .story-body{margin-top:11px}
+  #viewRoom #surface{font-size:15px;line-height:1.85;letter-spacing:0}
+  .file-objective{display:none}
+  .case-file-actions{justify-content:flex-end;margin-top:2px;background:transparent;border:0;gap:4px}
+  .case-file-actions .button{flex:none;min-height:40px;padding:0 8px;font-size:11px}
+  .case-file-actions .button svg{width:12px;height:12px}
+  #viewRoom .hint-item{font-size:13px;padding:10px 12px}
+  #viewRoom .room-main{height:auto;min-height:440px;gap:12px;width:100%}
+  #viewRoom .judge,#viewRoom .judge.empty{min-height:220px;padding:12px 5px;gap:9px;overflow:visible;flex:auto}
+  #viewRoom .host-portrait{width:54px;height:64px}
+  #viewRoom .empty .host-portrait{width:82px;height:97px}
+  .host-presence{gap:7px}
+  .host-name{font-size:15px;letter-spacing:3px}
+  .host-status{font-size:9px}
+  #viewRoom .judge-empty h2{font-size:24px;margin:15px 0 8px;letter-spacing:1px}
+  #viewRoom .judge-empty p{font-size:13px}
+  .idle-caption{display:none}
+  #viewRoom .question-meta{font-size:10px;margin-bottom:7px}
+  #viewRoom .question-text{font-size:21px;line-height:1.65;letter-spacing:.5px}
+  #viewRoom .answer strong{font-size:76px}
+  #viewRoom .answer strong.long{font-size:34px}
+  #viewRoom .answer .subtle{font-size:10px;letter-spacing:2px}
+  #viewRoom .answer::after{margin-top:12px}
+  #viewRoom .composer{position:sticky;bottom:0;z-index:5;padding:13px 12px 9px;margin-top:0;box-shadow:0 -6px 25px #17100999}
+  #viewRoom .composer-label{font-size:11px;margin-bottom:9px}
+  #viewRoom .input-row{gap:7px}
+  #viewRoom .input-row input{font-size:16px;padding:11px;min-height:48px}
+  #viewRoom .input-row .button{min-height:48px;padding:0 12px;font-size:13px}
+  #viewRoom .input-row .icon-only{width:41px;padding:0}
+  #viewRoom .actions{gap:4px;justify-content:space-between;margin-top:6px;flex-wrap:nowrap}
+  #viewRoom .actions .button.small{font-size:11px;padding:0 6px;gap:4px;min-height:42px}
+  #viewRoom .actions .button svg{width:14px;height:14px}
+  #viewRoom .actions .count{min-width:17px;height:17px;font-size:10px;padding:0 4px}
+  #viewRoom .notebook{position:fixed;left:0;right:0;bottom:0;z-index:30;max-height:82dvh;overflow:auto;border-radius:10px 10px 0 0;padding:20px 18px 26px;box-shadow:0 -20px 60px #000a}
+  #viewRoom .note-close{font-size:12px}
+  #viewRoom .note-empty{padding:18px 0}
+}
+@media(prefers-reduced-motion:reduce){#viewRoom .answer.reveal{animation:none}}

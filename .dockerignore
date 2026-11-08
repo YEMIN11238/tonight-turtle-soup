@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+data
+bin
+research
+public/assets/orig
+work
+outputs
+*.log
+.DS_Store
