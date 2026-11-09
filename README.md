@@ -36,7 +36,7 @@
 
 ## 当前案件
 
-内置 5 宗案件，包含悬疑、人性和心理题材。可通过书页边缘、档案库或随机选题进入。
+内置 13 宗案件，本轮新增 8 则惊悚悬疑故事，包含深夜尾随、密闭空间、藏匿与犯罪伪装等题材。可通过书页边缘、档案库或随机选题进入。
 
 | 案件 | 题材 | 难度 |
 | --- | --- | --- |
@@ -45,6 +45,14 @@
 | 全家福 | 悬疑 | ★★☆ |
 | 完美犯罪 | 人性 | ★★★ |
 | 开门以后 | 心理 | ★★★ |
+| 第三个人 | 惊悚 | ★★☆ |
+| 电梯里的人 | 心理 | ★★☆ |
+| 熄灯之后 | 悬疑 | ★★☆ |
+| 半根火柴 | 惊悚 | ★★★ |
+| 倒回去的录音 | 悬疑 | ★★★ |
+| 第二个蛋糕 | 惊悚 | ★★★ |
+| 谢幕后的掌声 | 惊悚 | ★★★ |
+| 镜子里的九点 | 悬疑 | ★★☆ |
 
 想先玩一局的朋友，可以暂时跳过题库源码；`server/puzzles.js` 包含完整汤底。
 
@@ -115,6 +123,8 @@ npm test
 
 ## 素材与题目来源
 
-当前题库按源码注明来源于 TurtleSoup-Bench 中文题，事实拆分、线索与提示在项目中整理。场景与旧书包含 AI 生成的美术资源。
+最初 5 宗案件沿用源码注明的 TurtleSoup-Bench 中文题；后续案件结合经典谜题机制与新编惊悚情境，重新编排汤面、世界设定、线索与判分事实。场景与旧书包含 AI 生成的美术资源。
+
+新增 8 张独立场景图的文件路径与生成提示词见 [场景图清单](docs/NEW_CASE_ART.md)。
 
 背景音乐的文件说明、来源和署名保存在 [`public/audio/CREDITS.txt`](public/audio/CREDITS.txt)。当前默认音源由使用者提供；保留的两首备用曲目为 Kevin MacLeod 的 [Long note One](https://incompetech.com/music/royalty-free/index.html?Search=Search&isrc=USUAN1100418) 和 [Dark Walk](https://incompetech.com/music/royalty-free/index.html?Search=Search&isrc=USUAN1100468)，采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可。该许可不适用于当前使用者提供的音源。
