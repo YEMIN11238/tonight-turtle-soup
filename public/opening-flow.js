@@ -3,9 +3,13 @@ export function openingParts(surface) {
   const source = String(surface ?? '').trim();
   if (!source) return [];
   const sentences = source.match(/[^。！？!?]+[。！？!?]*/gu) || [source];
-  return sentences.flatMap((sentence) => sentence.length > 24
-    ? sentence.match(/[^，,；;]+[，,；;]*/gu) || [sentence]
-    : [sentence]).map((part) => part.trim()).filter(Boolean);
+  // 一句话一个阅读节拍，逗号不再切页；短句合并，避免短汤面被拉成八屏。
+  const parts = [];
+  for (const sentence of sentences.map((part) => part.trim()).filter(Boolean)) {
+    if (parts.length && Array.from(parts.at(-1) + sentence).length <= 54) parts[parts.length - 1] += sentence;
+    else parts.push(sentence);
+  }
+  return parts;
 }
 
 export function openingDelay(text) {

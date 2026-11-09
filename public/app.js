@@ -6,12 +6,14 @@ import { Narrator } from './narrator.js';
 import { RoomClient } from './room-client.js';
 import { RoomVoice } from './room-voice.js';
 import { turnBookPage } from './book-turn.js';
+import { readRecords, saveRecord, challengeText, makeShareCard } from './case-records.js';
+import { createCaseAtmosphere, atmosphereArt } from './case-atmosphere.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const stars = (n) => '★'.repeat(n);
 const pad2 = (n) => String(n).padStart(2, '0');
-const VERDICT_SUB = { yes: '已确认', no: '与真相不符', irrelevant: '与真相无关', unknown: '故事没有交代', invalid: '未扣次数' };
+const VERDICT_SUB = { yes: '已确认', no: '已记入排除记录', irrelevant: '与真相无关', unknown: '故事没有交代 · 未扣次数', invalid: '未扣次数' };
 const STATUS = {
   won: { badge: '成功结案', head: '真相浮出水面。', lead: '你的推理说中了核心真相。下面是完整汤底，以及本局确认过的每一项事实。' },
   lost: { badge: '尚未还原', head: '真相仍在雾里。', lead: '三次提交机会已经用完。完整汤底在这里，对照看看是哪一步没有想通。' },
@@ -32,12 +34,18 @@ let cinematicMode = 'opening';
 let introNarrated = false;
 let bookOpening = false;
 let bookTurnController = null;
+let archiveFilter = 'horror';
+let bookCollection = 'horror';
+const atmosphere = createCaseAtmosphere({ sound: gameSound });
+const seenOpenings = () => { try { return JSON.parse(localStorage.getItem('ts_seen_openings') || '{}') || {}; } catch { return {}; } };
+const horrorPuzzles = () => META.puzzles.filter((p) => p.collection !== 'archive');
+const bookPuzzles = () => bookCollection === 'all' ? META.puzzles : horrorPuzzles();
 
 async function api(path, body) {
   const opt = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
   const r = await fetch('/api/' + path, opt);
   const j = await r.json().catch(() => ({ error: '网络异常，请稍后再试' }));
-  if (!r.ok) throw new Error(j.error || '出错了');
+  if (!r.ok) throw Object.assign(new Error(j.error || '出错了'), { status: r.status });
   // 展示标题只交代谜面，避免把身份与心理设定提前当作线索送给玩家。
   if (Array.isArray(j.puzzles)) j.puzzles = j.puzzles.map((p) => ({ ...p, title: artOf(p.id).displayTitle || p.title }));
   if (j.puzzle) j.puzzle = { ...j.puzzle, title: artOf(j.puzzle.id).displayTitle || j.puzzle.title };
@@ -171,9 +179,9 @@ function markPlayed(id, status) {
 }
 
 // 图片：稳定占位比例；加载完成再淡入；失败时保留“编号 + 标题”替代界面
-function artBox(id, title, { small = false, eager = false, pos } = {}) {
+function artBox(id, title, { small = false, eager = false, pos, source } = {}) {
   const a = artOf(id);
-  const src = imgSrc(id, small);
+  const src = source || atmosphereArt({ puzzle: { id }, status: 'playing', sceneStage: 'quiet' })?.src || imgSrc(id, small);
   return `<div class="art-box">
     ${src ? `<img src="${src}" alt="${esc(a.alt)}" loading="${eager ? 'eager' : 'lazy'}" decoding="async" style="object-position:${pos || a.pos}" onload="this.classList.add('loaded');this.parentNode.classList.add('has-img')" onerror="this.remove()">` : ''}
     <div class="art-fallback"><span>CASE ${a.no}</span><b>${esc(title)}</b></div>
@@ -191,6 +199,7 @@ function show(v) {
   }
   view = v;
   document.body.dataset.view = v;
+  atmosphere.setView(v === 'intro' && cinematicMode === 'reveal' ? 'reveal' : v);
   gameSound.setPhase(v === 'intro' && cinematicMode === 'reveal' ? 'reveal' : v);
   for (const id of ['viewLobby', 'viewIntro', 'viewHome', 'viewRoom', 'viewEnd']) $('#' + id).classList.add('hidden');
   $({ lobby: '#viewLobby', intro: '#viewIntro', home: '#viewHome', room: '#viewRoom', end: '#viewEnd' }[v]).classList.remove('hidden');
@@ -215,16 +224,17 @@ async function showLobby(id = selectedId) {
   META ??= await api('meta');
   setMode();
   const puzzle = META.puzzles.find((p) => p.id === id)
-    || META.puzzles.find((p) => !played()[p.id]) || META.puzzles[0];
+    || horrorPuzzles().find((p) => !played()[p.id]) || horrorPuzzles()[0];
   selectedId = puzzle.id;
+  if (puzzle.collection === 'archive') bookCollection = 'all';
   localStorage.setItem('ts_case', selectedId);
   const art = artOf(selectedId);
-  const chapter = META.puzzles.findIndex((p) => p.id === selectedId);
+  const chapters = bookPuzzles(), chapter = chapters.findIndex((p) => p.id === selectedId);
   $('#entryTag').textContent = `第 ${chapter + 1} 章 · ${puzzle.tag}`;
-  $('#entryPage').textContent = `${pad2(chapter + 1)} / ${pad2(META.puzzles.length)}`;
+  $('#entryPage').textContent = `${pad2(chapter + 1)} / ${pad2(chapters.length)}`;
   $('#entryTitle').textContent = puzzle.title;
-  $('#entrySurface').textContent = puzzle.surface;
-  $('#entrySummary').textContent = puzzle.surface;
+  $('#entrySurface').textContent = art.tagline || puzzle.surface;
+  $('#entrySummary').textContent = art.tagline || puzzle.surface;
   if (!room.active) $('#entryReady').textContent = '单人推理 · 已就绪';
   $('#codeBox').classList.toggle('hidden', !META.needCode);
   if (META.needCode && !$('#code').value) $('#code').value = localStorage.getItem('ts_code') || '';
@@ -242,13 +252,13 @@ async function showLobby(id = selectedId) {
 }
 
 function updateLobbyControls() {
-  const chapter = META?.puzzles.findIndex((p) => p.id === selectedId) ?? -1;
+  const chapters = META ? bookPuzzles() : [], chapter = chapters.findIndex((p) => p.id === selectedId);
   const chapterLocked = busy || bookOpening || !META || (room.active && (!room.host || room.data.phase !== 'lobby'));
   $('#btnBookPrev').disabled = chapterLocked || chapter <= 0;
-  $('#btnBookNext').disabled = chapterLocked || chapter >= (META?.puzzles.length || 0) - 1;
+  $('#btnBookNext').disabled = chapterLocked || chapter >= chapters.length - 1;
   if (META) {
-    $('#btnBookPrev').title = chapter > 0 ? `上一章 · ${META.puzzles[chapter - 1].title}` : '已经是第一章';
-    $('#btnBookNext').title = chapter < META.puzzles.length - 1 ? `下一章 · ${META.puzzles[chapter + 1].title}` : '已经是最后一章';
+    $('#btnBookPrev').title = chapter > 0 ? `上一章 · ${chapters[chapter - 1].title}` : '已经是第一章';
+    $('#btnBookNext').title = chapter < chapters.length - 1 ? `下一章 · ${chapters[chapter + 1].title}` : '已经是最后一章';
   }
   if (room.active) {
     const d = room.data, me = d.players.find((p) => p.id === d.meId), playing = d.phase !== 'lobby';
@@ -258,14 +268,14 @@ function updateLobbyControls() {
     $('#btnResume').disabled = busy; return;
   }
   $('#btnStart').disabled = busy || bookOpening;
-  $('#btnStart').innerHTML = busy || bookOpening ? '正在翻开故事…' : '翻开故事 <svg class="arrow"><use href="#i-arrow"/></svg>';
+  $('#btnStart').innerHTML = busy || bookOpening ? '正在翻开故事…' : `${seenOpenings()[selectedId] ? '开始推理' : '翻开故事'} <svg class="arrow"><use href="#i-arrow"/></svg>`;
   for (const id of ['#btnArchive', '#btnRandom', '#btnResume']) $(id).disabled = busy || bookOpening || !META;
 }
 
 async function turnChapter(step) {
   if (!META || busy || bookOpening || view !== 'lobby') return;
   if (room.active && (!room.host || room.data.phase !== 'lobby')) return;
-  const chapter = META.puzzles.findIndex((p) => p.id === selectedId), next = META.puzzles[chapter + step];
+  const chapters = bookPuzzles(), chapter = chapters.findIndex((p) => p.id === selectedId), next = chapters[chapter + step];
   if (!next) return;
   gameSound.unlock();
   bookTurnController?.abort();
@@ -293,7 +303,7 @@ $('#btnStart').addEventListener('click', async () => {
 $('#btnArchive').addEventListener('click', () => { if (!busy) showHome().catch((e) => toast(e.message)); });
 $('#btnRandom').addEventListener('click', () => {
   if (busy || !META) return;
-  const other = META.puzzles.filter((p) => p.id !== selectedId);
+  const other = horrorPuzzles().filter((p) => p.id !== selectedId);
   if (other.length) chooseCase(other[Math.floor(Math.random() * other.length)].id).catch((e) => toast(e.message));
 });
 $('#btnResume').addEventListener('click', async () => {
@@ -304,9 +314,9 @@ $('#btnResume').addEventListener('click', async () => {
   updateLobbyControls();
   try { enterRoom(await api('state?sid=' + encodeURIComponent(S.sid))); }
   catch (err) {
-    S = null;
-    localStorage.removeItem('ts_sid');
-    await showLobby();
+    if (err.status === 404 || err.status === 410) {
+      S = null; localStorage.removeItem('ts_sid'); await showLobby();
+    }
     toast(err.message);
   } finally {
     busy = false;
@@ -318,6 +328,8 @@ $('#btnResume').addEventListener('click', async () => {
 // ================= 汤面开场 =================
 function startIntro(st) {
   S = st;
+  atmosphere.update(st);
+  if (!room.active && seenOpenings()[st.puzzle.id]) return enterRoom(st);
   if (view === 'lobby' && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
     bookTurnController?.abort();
     const controller = bookTurnController = new AbortController();
@@ -370,36 +382,30 @@ function renderIntro() {
     queueIntro();
     return;
   }
-  const rule = introCursor >= introParts.length;
-  $('#btnIntroReplay').disabled = rule;
-  $('#btnIntroReplay').textContent = rule ? '已读完' : '重播';
-  const first = Math.floor(introCursor / 3) * 3;
-  if (rule) {
-    $('#introText').innerHTML = `<p class="opening-line opening-rule">请还原故事真相，<br class="intro-mobile-break">提问限制 ${S.maxQ} 次。</p>`;
-  } else {
-    $('#introText').innerHTML = introParts.slice(first, introCursor + 1).map((part, i) =>
-      `<p class="opening-line ${i < introCursor - first ? 'settled' : ''}">${esc(part)}</p>`).join('');
-  }
-  $('#introCount').textContent = `${introCursor + 1} / ${introParts.length + 1}`;
-  $('#btnIntroNext').textContent = rule ? '开始推理 / 空格' : '点击继续 / 空格';
-  $('#btnIntroAuto').textContent = rule ? '汤面已读完' : introAuto ? '暂停自动' : '自动播放';
-  $('#btnIntroAuto').disabled = rule;
+  const last = introCursor >= introParts.length - 1;
+  $('#btnIntroReplay').disabled = false;
+  $('#btnIntroReplay').textContent = '重播';
+  $('#introText').innerHTML = `<p class="opening-line">${esc(introParts[introCursor] || '')}</p>${last ? '<p class="opening-guide">用「是 / 否」问题还原真相 · 40 次机会</p>' : ''}`;
+  $('#introCount').textContent = `${introCursor + 1} / ${introParts.length}`;
+  $('#btnIntroNext').textContent = last ? '开始推理 / 空格' : '点击继续 / 空格';
+  $('#btnIntroAuto').textContent = last ? '汤面已读完' : introAuto ? '暂停自动' : '自动播放';
+  $('#btnIntroAuto').disabled = last;
   $('#btnIntroAuto').setAttribute('aria-pressed', String(introAuto));
   $('#introStage').scrollTop = 0;
-  if (!rule && voiceOn) speak(introParts[introCursor]);
+  if (voiceOn) speak(introParts[introCursor]);
   queueIntro();
 }
 
 function queueIntro() {
   clearTimeout(introTimer);
   if (view !== 'intro' || !introAuto || document.hidden || speechPending || !$('#audioPanel').classList.contains('hidden') || introCursor >= introParts.length) return;
-  if (cinematicMode === 'reveal' && introCursor >= introParts.length - 1) return;
+  if (introCursor >= introParts.length - 1) return;
   introTimer = setTimeout(advanceIntro, voiceOn && introNarrated ? 1100 : openingDelay(introParts[introCursor]));
 }
 
 function advanceIntro() {
   if (view !== 'intro' || introFinishing) return;
-  if (introCursor >= introParts.length - (cinematicMode === 'reveal' ? 1 : 0)) return finishIntro();
+  if (introCursor >= introParts.length - 1) return finishIntro();
   introCursor++;
   renderIntro();
 }
@@ -439,7 +445,8 @@ async function showHome() {
   $('#codeBox').classList.toggle('hidden', !META.needCode);
   if (META.needCode && !$('#code').value) $('#code').value = localStorage.getItem('ts_code') || '';
   const pl = played();
-  const list = META.puzzles;
+  const list = archiveFilter === 'all' ? META.puzzles : horrorPuzzles();
+  document.querySelectorAll('[data-collection]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.collection === archiveFilter)));
   // 主推：第一宗未结卷宗；都玩过则第一宗
   const feat = list.find((p) => !pl[p.id]) || list[0];
   const rest = list.filter((p) => p !== feat);
@@ -461,7 +468,7 @@ async function showHome() {
       return `<button class="case-card" data-id="${esc(p.id)}" type="button" aria-label="${esc(p.title)}：${esc(p.surface)}">
         ${pl[p.id] ? `<span class="played">${pl[p.id] === 'won' ? '已结案' : '已揭晓'}</span>` : ''}
         ${artBox(p.id, p.title, { small: true })}
-        <div class="case-card-body"><h3>${esc(p.title)}</h3><div class="case-meta"><span>${esc(p.tag)} · ${stars(p.difficulty)}</span><span>${a.no} ↗</span></div></div>
+        <div class="case-card-body"><h3>${esc(p.title)}</h3><div class="case-meta"><span>${esc(p.tag)} · ${stars(p.difficulty)}</span><span>${a.no} ↗</span></div>${readRecords(localStorage)[p.id]?.best ? `<small class="case-best">本机最佳 ${readRecords(localStorage)[p.id].best.used} 问结案</small>` : ''}</div>
       </button>`;
     })
     .join('');
@@ -470,6 +477,7 @@ async function showHome() {
   history.replaceState(null, '', location.pathname + (room.active ? '?room=' + room.data.code : ''));
   show('home');
 }
+document.querySelectorAll('[data-collection]').forEach((button) => button.addEventListener('click', () => { archiveFilter = button.dataset.collection; showHome().catch((err) => toast(err.message)); }));
 
 async function openCase(id) {
   if (busy) return;
@@ -492,7 +500,7 @@ async function openCase(id) {
 }
 document.addEventListener('click', (e) => {
   const c = e.target.closest('.featured, .case-card');
-  if (c && !busy) chooseCase(c.dataset.id).catch((err) => toast(err.message));
+  if (c && !busy) { bookCollection = archiveFilter; chooseCase(c.dataset.id).catch((err) => toast(err.message)); }
 });
 
 // ================= 推理室 =================
@@ -503,12 +511,13 @@ function setScene(st) {
   $('#crumbCase').textContent = st.puzzle.title;
   $('#fbNo').textContent = `CASE ${a.no}`;
   $('#fbTitle').textContent = st.puzzle.title;
-  if (sceneFor === id) return;
-  sceneFor = id;
+  const phaseArt = atmosphereArt(st), sceneKey = `${id}:${st.sceneStage || ''}`;
+  if (sceneFor === sceneKey) return;
+  sceneFor = sceneKey;
   // 新图加载完成后再替换，旧图保持到那时；标题淡入
   const scene = $('#scene');
   const old = $('#sceneImg');
-  const src = imgSrc(id);
+  const src = phaseArt?.src || imgSrc(id);
   const copy = $('#sceneCopy');
   copy.style.animation = 'none';
   void copy.offsetWidth;
@@ -525,13 +534,15 @@ function setScene(st) {
   const img = new Image();
   img.decoding = 'async';
   img.onload = () => {
+    if (sceneFor !== sceneKey) return;
     old.src = src;
-    old.alt = a.alt;
-    old.style.objectPosition = a.pos;
+    old.alt = phaseArt?.alt || a.alt;
+    old.style.objectPosition = phaseArt?.pos || a.pos;
     old.classList.add('loaded');
     scene.classList.add('has-img');
   };
   img.onerror = () => {
+    if (sceneFor !== sceneKey) return;
     old.classList.remove('loaded');
     scene.classList.remove('has-img');
   };
@@ -539,6 +550,7 @@ function setScene(st) {
 }
 
 function enterRoom(st) {
+  try { localStorage.setItem('ts_seen_openings', JSON.stringify({ ...seenOpenings(), [st.puzzle.id]: true })); } catch {}
   sceneFor = null;
   render(st);
   setScene(st);
@@ -548,6 +560,7 @@ function enterRoom(st) {
   if (st.status !== 'playing') return showEnd(st);
   if (matchMedia('(min-width:761px)').matches) $('#q').focus();
 }
+$('#btnStoryReplay').addEventListener('click', () => { if (S && !busy && S.status === 'playing') { gameSound.unlock(); presentIntro(S); } });
 const countedNo = (st, idx) => st.log.slice(0, idx + 1).filter((l) => l.counted).length;
 
 function renderControls(st) {
@@ -566,13 +579,15 @@ function renderControls(st) {
 // 推理室数据渲染（只用真实状态）
 function render(st, { flashIds = [], newIds = [] } = {}) {
   S = st;
+  atmosphere.update(st);
+  setScene(st);
   $('#surface').textContent = st.puzzle.surface;
   $('#qleft').textContent = st.remaining;
   $('#qmax').textContent = st.maxQ;
   $('#counter').classList.toggle('low', st.remaining <= 8);
   $('#hleft').textContent = `${st.hintsLeft} / 3`;
   $('#sleft').textContent = `剩 ${st.submitsLeft}`;
-  $('#noteCount').textContent = st.clues.length;
+  $('#noteCount').textContent = st.clues.length + (st.exclusions?.length || 0);
   const over = st.status !== 'playing';
   $('.room-live').innerHTML = `<span></span>${over ? '本局已结案' : '推理进行中'}`;
   renderControls(st);
@@ -583,7 +598,7 @@ function render(st, { flashIds = [], newIds = [] } = {}) {
   // 进度（400ms 过渡，只跟随真实值）
   $('#prog').textContent = st.progress + '%';
   $('#progFill').style.width = st.progress + '%';
-  $('#noteCaption').textContent = st.clues.length ? `已确认 ${st.clues.length} 项关键事实` : '尚未确认任何关键事实';
+  $('#noteCaption').textContent = st.clues.length || st.exclusions?.length ? `已确认 ${st.clues.length} 项关键事实 · 已排除 ${st.exclusions?.length || 0} 个方向` : '从一个问题开始，确认与排除都会留下记录。';
   $('#dims').innerHTML = st.dims.filter((d) => d.got > 0).map((d) => `<span class="dim ${d.got === d.total ? 'full' : ''}">${esc(d.name)} ${d.got}/${d.total}</span>`).join('');
   $('#dims').classList.toggle('hidden', !st.clues.length);
 
@@ -592,19 +607,23 @@ function render(st, { flashIds = [], newIds = [] } = {}) {
     .map((c, i) => `
       <article class="evidence-card ${newIds.includes(c.id) ? 'new' : ''} ${flashIds.includes(c.id) ? 'flash' : ''}" data-fid="${esc(c.id)}">
  <div class="evidence-top"><span>${pad2(i + 1)} / ${esc(c.dim)}</span><span>+${c.weight}%</span></div>
-        <p>${esc(c.card)}</p>
-        <div class="evidence-source">${c.no ? `来自第 ${pad2(c.no)} 次提问 · ` : ''}“${esc(c.q)}”</div>
+        <p>${esc(c.card)}</p><span class="evidence-verdict">${c.source === 'submission' ? '推理中已确认' : '裁判确认：是'}</span>
+        <div class="evidence-source">${c.no ? `第 ${pad2(c.no)} 次提问` : '来自已提交的推理'}</div>
       </article>`)
     .join('');
   if (flashIds.length) setTimeout(() => document.querySelectorAll('.evidence-card.flash').forEach((e) => e.classList.remove('flash')), 1200);
+  const exclusions = st.exclusions || [];
+  $('#excludedSection').classList.toggle('hidden', !exclusions.length);
+  $('#excludedCount').textContent = exclusions.length;
+  $('#exclusions').innerHTML = exclusions.map((e) => `<article class="exclusion-card"><span>第 ${pad2(e.no || 0)} 问 · 已排除</span><p>${esc(e.q)}</p><b>裁判回答：否</b></article>`).join('');
 
   $('#gapBox').innerHTML = st.gaps
     ? `<div class="gap-box">上次推理得分 <b>${st.gaps.score}%</b>${st.gaps.comment ? '。' + esc(st.gaps.comment) : ''}<br>还差：<b>${st.gaps.dims.map(esc).join('、')}</b> 方面</div>`
     : '';
   $('#noteEmpty p').innerHTML = st.clues.length
     ? '下一项事实，藏在你的问题里。<br>已确认的线索会继续收录在这里。'
-    : '让问题变成线索。<br>问中关键事实后，会收录在这份卷宗里。';
-  $('#noteEmpty').classList.toggle('hidden', st.progress >= 100);
+    : '排除错误方向，也是推理的一部分。<br>接着确认故事里的异常。';
+  $('#noteEmpty').classList.toggle('hidden', st.progress >= 100 || exclusions.length > 0);
   $('#noteEmpty').classList.toggle('has-facts', st.clues.length > 0);
   $('#nudges').innerHTML = st.progress < 100 ? st.nudges.map((n) => `<div class="nudge">${esc(n)}</div>`).join('') : '';
 
@@ -648,15 +667,15 @@ function renderJudge(l, thinkingQ, thinkingBy = '你') {
     ? `<button type="button" class="fact-notice" data-go="clues"><span>✦</span><span>已收录 ${l.newClues.length} 项关键事实</span><span>→</span></button>`
     : again
       ? `<button type="button" class="fact-notice again" data-go="clues"><span>◇</span><span>这项事实已在卷宗中</span><span>→</span></button>`
-      : '';
+      : l.verdict === 'no' ? '<button type="button" class="fact-notice excluded" data-go="clues"><span>◇</span><span>已记入排除记录</span><span>→</span></button>' : '';
   j.className = 'judge answer-scene';
   j.innerHTML = `
     ${hostBadge('主持人')}
     <div class="turn-question"><div class="question-meta"><span class="tiny-dot"></span><span>${l.counted ? `第 ${pad2(l.no)} 次提问` : '未计入次数'} · ${esc(l.by || '你')}</span></div>
     <h2 class="question-text">${esc(withQ(l.q))}</h2>
     </div>
-    <div class="answer reveal"><strong class="v-${l.verdict} ${long ? 'long' : ''}">${esc(label)}</strong><div class="subtle">${VERDICT_SUB[l.verdict] || ''}</div></div>
-    ${l.reason ? `<div class="reason-line">${esc(l.reason)}</div>` : ''}${notice}`;
+    <div class="answer reveal"><strong class="v-${l.verdict} ${long ? 'long' : ''}">${esc(label)}</strong><div class="subtle">${l.verdict === 'unknown' && l.counted ? '故事没有交代' : VERDICT_SUB[l.verdict] || ''}</div></div>
+    ${l.reason && l.verdict !== 'unknown' ? `<div class="reason-line">${esc(l.reason)}</div>` : ''}${notice}`;
 }
 const withQ = (q) => (/[?？]$/.test(q) ? q : q + '？');
 
@@ -731,7 +750,7 @@ $('#judge').addEventListener('click', (e) => {
   if (!e.target.closest('[data-go="clues"]')) return;
   switchTab('clues');
   if (matchMedia('(max-width:760px)').matches) $('#notebook').classList.add('open');
-  const card = document.querySelector('.evidence-card:last-child');
+  const card = S?.log.at(-1)?.verdict === 'no' ? document.querySelector('.exclusion-card:last-child') : document.querySelector('.evidence-card:last-child');
   card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
 
@@ -825,6 +844,7 @@ document.addEventListener('keydown', (e) => {
 function startReveal(st) {
   if (st.status === 'playing' || !st.reveal?.truth) return;
   S = st; stopSpeech();
+  atmosphere.update(st);
   cinematicMode = 'reveal';
   introParts = revealParts(st.reveal.truth);
   introCursor = 0; introFinishing = false;
@@ -837,13 +857,18 @@ function startReveal(st) {
   show('intro'); renderIntro(); $('#btnIntroNext').focus({ preventScroll: true });
 }
 function showEnd(st) {
+  S = st;
+  atmosphere.update(st);
   markPlayed(st.puzzle.id, st.status);
+  const record = saveRecord(localStorage, st);
   const a = artOf(st.puzzle.id);
   const meta = STATUS[st.status] || STATUS.gaveup;
   const r = st.reveal;
+  const turningPoint = st.log.find((l) => l.newClues?.length);
+  const recommended = horrorPuzzles().find((p) => p.id !== st.puzzle.id && !played()[p.id]) || horrorPuzzles().find((p) => p.id !== st.puzzle.id);
   const scoreCell = st.stats.score != null ? `<div><strong>${st.stats.score}%</strong><span>推理得分</span></div>` : `<div><strong>${st.stats.submits}</strong><span>提交次数</span></div>`;
   $('#endCase').innerHTML = `
-    <div class="end-art">${artBox(st.puzzle.id, st.puzzle.title, { eager: true, pos: a.endPos })}
+    <div class="end-art">${artBox(st.puzzle.id, st.puzzle.title, { eager: true, pos: a.endPos, source: atmosphereArt(st)?.src })}
       <div class="end-art-copy"><div class="eyebrow">CASE ${a.no} / 案件归档</div><h2>${esc(st.puzzle.title)}</h2></div></div>
     <div class="end-paper">
       <div class="eyebrow">THE CASE FILE · 结案</div>
@@ -856,6 +881,7 @@ function showEnd(st) {
         <div><strong>${st.progress}%</strong><span>真相还原度</span></div>
         ${scoreCell}
       </div>
+      <div class="record-summary">${record?.best ? `<strong>本机最佳：${record.best.used} 问结案 · 使用 ${record.best.hints} 次提示</strong>` : '本局已经归档，下一次试着用更少的问题还原真相。'}${turningPoint ? `<p>首次突破 · <span class="turning-point">${esc(turningPoint.q)}</span></p>` : ''}${recommended ? `<p>下一宗推荐 · ${esc(recommended.title)}</p>` : ''}</div>
       <section class="end-section"><h3><span class="step-number">1</span>汤面</h3><p class="truth">${esc(st.puzzle.surface)}</p></section>
       <section class="end-section"><h3><span class="step-number">2</span>完整汤底</h3><p class="truth">${esc(r.truth)}</p></section>
       ${r.found.length ? `<section class="end-section"><h3><span class="step-number">3</span>你已确认的事实</h3><ul class="fact-list found">${r.found.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></section>` : ''}
@@ -863,7 +889,7 @@ function showEnd(st) {
       <div class="end-actions">
         <button type="button" class="button dark" id="btnAgain">再开一宗 <svg class="arrow"><use href="#i-arrow"/></svg></button>
         <button type="button" class="button secondary" id="btnReview">回看问答</button>
-        <button type="button" class="button quiet" id="btnShare"><svg><use href="#i-share"/></svg>分享</button>
+        <button type="button" class="button quiet" id="btnShare"><svg><use href="#i-share"/></svg>分享战绩</button>
       </div>
     </div>`;
   show('end');
@@ -871,7 +897,7 @@ function showEnd(st) {
     if (room.active) { if (!room.host) return toast('等待房主开启下一宗卷宗'); room.action('reset').catch((e) => toast(e.message)); return; }
     localStorage.removeItem('ts_sid');
     S = null;
-    const next = META.puzzles.find((p) => !played()[p.id]) || META.puzzles[0];
+    const next = recommended || horrorPuzzles()[0];
     showLobby(next.id).catch((err) => toast(err.message));
   };
   $('#btnReview').onclick = () => {
@@ -887,21 +913,37 @@ function showEnd(st) {
   $('#btnShare').onclick = share;
 }
 async function share() {
-  if (room.active) return inviteRoom();
+  if (!S?.stats) return room.active ? inviteRoom() : undefined;
+  const snapshot = structuredClone(S), url = challengeUrl();
+  const button = $('#btnShare'); if (button) button.disabled = true;
+  try {
+    const blob = await makeShareCard(snapshot, atmosphereArt({ ...snapshot, status: 'playing', sceneStage: 'quiet' })?.src || imgSrc(snapshot.puzzle.id), url);
+    if (shareBlobUrl) URL.revokeObjectURL(shareBlobUrl);
+    shareBlobUrl = URL.createObjectURL(blob);
+    shareDetails = { title: snapshot.puzzle.title, text: `${challengeText(snapshot)}\n${url}` };
+    $('#shareCardPreview').src = shareBlobUrl;
+    $('#shareDlg').showModal();
+  } catch (err) { toast(err.message); }
+  finally { if (button) button.disabled = false; }
+}
+let shareBlobUrl = '';
+let shareDetails = null;
+function challengeUrl() {
   const link = new URL(location.pathname, location.origin);
   if (S?.puzzle.id || selectedId) link.searchParams.set('case', S?.puzzle.id || selectedId);
-  const url = link.href;
-  const text = `今晚喝什么汤？来一起推理：${url}`;
-  try {
-    if (navigator.share) await navigator.share({ title: '今晚喝什么汤 · AI 海龟汤推理室', url });
-    else {
-      await navigator.clipboard.writeText(text);
-      toast('链接已复制');
-    }
-  } catch {
-    prompt('复制这个链接：', url);
-  }
+  return link.href;
 }
+$('#btnShareClose').addEventListener('click', () => $('#shareDlg').close());
+$('#btnCopyChallenge').addEventListener('click', async () => {
+  const text = shareDetails?.text; if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text); toast('无剧透挑战链接已复制');
+  } catch { prompt('复制这段挑战邀请：', text); }
+});
+$('#btnSaveCard').addEventListener('click', () => {
+  if (!shareBlobUrl) return;
+  const anchor = document.createElement('a'); anchor.href = shareBlobUrl; anchor.download = `今晚喝什么汤-${shareDetails?.title || '案件'}-战绩.png`; anchor.click();
+});
 
 // ================= 语音：裁判播报 + 语音输入 =================
 let voiceOn = localStorage.getItem('ts_voice') !== '0';
@@ -1052,7 +1094,10 @@ async function boot() {
       const st = await api('state?sid=' + encodeURIComponent(sid));
       if (st.status === 'playing') S = st;
       else localStorage.removeItem('ts_sid');
-    } catch { localStorage.removeItem('ts_sid'); }
+    } catch (err) {
+      if (err.status === 404 || err.status === 410) { localStorage.removeItem('ts_sid'); toast('上次对局已过期或服务器存档已清理，请重新开局', 5500); }
+      else toast('暂时无法读取上次对局，稍后刷新可重试', 4500);
+    }
   }
   const requested = new URLSearchParams(location.search).get('case');
   const invited = new URLSearchParams(location.search).get('room');

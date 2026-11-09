@@ -140,7 +140,7 @@ export function mountRooms(app, { judge, grade, spend, accessCode = '', dataDire
     const duplicate = G.findDuplicate(r.session, q);
     if (duplicate) return res.json({ ...snapshot(r, p.id), notice: `问过了：「${duplicate.q}」→ ${G.VERDICT_LABEL[duplicate.verdict]}，不扣次数` });
     await judging(r, p, q, async () => {
-      spend(r.session); const puzzle = getPuzzle(r.puzzleId);
+      await spend(r.session); const puzzle = getPuzzle(r.puzzleId);
       G.applyAsk(r.session, puzzle, q, G.sanitizeJudge(await judge(puzzle, r.session.asked, q), puzzle), p.name); r.gameRevision++;
     });
     res.json(snapshot(r, p.id));
@@ -154,7 +154,7 @@ export function mountRooms(app, { judge, grade, spend, accessCode = '', dataDire
     const [r, p] = get(req); playable(r); const answer = String(req.body.answer || '').trim();
     if (!answer || answer.length > 600) throw fail(400, '请填写 600 字以内的完整推理');
     await judging(r, p, '正在审阅完整推理', async () => {
-      spend(r.session); const puzzle = getPuzzle(r.puzzleId), g = await grade(puzzle, answer);
+      await spend(r.session); const puzzle = getPuzzle(r.puzzleId), g = await grade(puzzle, answer);
       const covered = [...new Set(g.covered)], result = G.scoreSubmission(puzzle, covered, g.partial, r.session.unlocked);
       r.session.submits++;
       if (result.passed) r.session.status = 'won'; else if (r.session.submits >= G.MAX_SUBMITS) r.session.status = 'lost';

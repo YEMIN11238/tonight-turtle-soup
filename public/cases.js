@@ -51,7 +51,7 @@ export const CASE_ART = {
   },
   'rainy-elevator': {
     no: '007', art: 'rainy-elevator',
-    tagline: '他问你住几楼，却比你先知道答案。',
+    tagline: '一个陌生人，一趟不该停下的电梯。',
     alt: '雨夜老楼中紧闭的铜色电梯门',
     pos: '64% 50%', endPos: '73% 50%',
   },
@@ -69,7 +69,7 @@ export const CASE_ART = {
   },
   'recording-alibi': {
     no: '010', art: 'recording-alibi',
-    tagline: '录音已经结束，有人却留下了另一个动作。',
+    tagline: '一段告别录音，为什么让侦探起了疑心？',
     alt: '昏暗房间桌上的旧式磁带录音机',
     pos: '66% 55%', endPos: '76% 55%',
   },
@@ -87,7 +87,7 @@ export const CASE_ART = {
   },
   'mirror-alibi': {
     no: '013', art: 'mirror-alibi',
-    tagline: '镜子里的时间，真的和他说的一样吗？',
+    tagline: '照片里的时间，真的能证明她在哪里吗？',
     alt: '昏暗房间的旧镜子与模糊的挂钟倒影',
     pos: '65% 50%', endPos: '76% 50%',
   },

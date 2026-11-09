@@ -44,3 +44,43 @@ test('真实房间：身份、准备、共享次数、并发保护、汤底保�
     assert.equal((await post(path + '/reset', g.cookie)).body.phase, 'lobby');
   } finally { streams.forEach((c) => c.abort()); rooms.close(); server.closeAllConnections(); await new Promise((r) => server.close(r)); rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('多人动作等待异步额度落盘；写入失败不调用模型并解除忙碌状态', async () => {
+  const dir = mkdtempSync(tmpdir() + '/soup-room-quota-');
+  const app = express(); app.use(express.json());
+  let rejectSpend = true, judgeCalls = 0, gradeCalls = 0;
+  const rooms = mountRooms(app, {
+    dataDirectory: dir,
+    spend: async () => { if (rejectSpend) throw Object.assign(new Error('存档暂时无法保存，请稍后重试'), { status: 503 }); },
+    judge: async () => { judgeCalls++; return { verdict: 'yes', matched_fact_ids: ['f1'] }; },
+    grade: async () => { gradeCalls++; return { covered: [], partial: [], comment: '' }; },
+  });
+  const server = app.listen(0); await new Promise((r) => server.once('listening', r));
+  const base = 'http://127.0.0.1:' + server.address().port, stream = new AbortController();
+  let cookie;
+  async function post(path, body = {}) {
+    const response = await fetch(base + '/api/rooms' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
+    cookie ||= response.headers.get('set-cookie')?.split(';')[0];
+    return { status: response.status, body: await response.json() };
+  }
+  try {
+    const created = await post('', { name: '测试旅人', puzzleId: 'blind-meal' }), path = '/' + created.body.code;
+    const events = await fetch(base + '/api/rooms' + path + '/events', { headers: { cookie }, signal: stream.signal });
+    assert.equal(events.status, 200);
+    assert.equal((await post(path + '/start')).status, 200);
+    assert.equal((await post(path + '/ask', { q: '他是盲人吗？' })).status, 503);
+    assert.equal((await post(path + '/submit', { answer: '这是一段待审阅的推理' })).status, 503);
+    assert.equal(judgeCalls, 0); assert.equal(gradeCalls, 0);
+    const afterFailure = (await post(path + '/join')).body;
+    assert.equal(afterFailure.busy, null);
+    assert.equal(afterFailure.game.remaining, 40);
+    assert.equal(afterFailure.game.submitsLeft, 3);
+    rejectSpend = false;
+    const retried = await post(path + '/ask', { q: '他是盲人吗？' });
+    assert.equal(retried.status, 200); assert.equal(retried.body.game.remaining, 39);
+    assert.equal(retried.body.busy, null); assert.equal(judgeCalls, 1);
+  } finally {
+    stream.abort(); rooms.close(); server.closeAllConnections(); await new Promise((r) => server.close(r));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

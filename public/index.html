@@ -13,6 +13,8 @@
 <link rel="stylesheet" href="sound.css" />
 <link rel="stylesheet" href="rooms.css" />
 <link rel="stylesheet" href="lamplight.css" />
+<link rel="stylesheet" href="case-atmosphere.css" />
+<link rel="stylesheet" href="experience.css" />
 </head>
 <body data-view="lobby">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -84,6 +86,7 @@
       <div><div class="eyebrow">午夜档案馆 / CASE ARCHIVE</div><h1>今夜，从哪一宗开始？</h1></div>
       <p class="subtle">一段看似平常的故事，藏着另一种解释。<br />翻开卷宗，用问题接近真相。</p>
     </section>
+    <div class="collection-filters" aria-label="卷宗分类"><button type="button" data-collection="horror" aria-pressed="true">惊悚精选</button><button type="button" data-collection="all" aria-pressed="false">全部卷宗</button><span>默认推荐惊悚案件，旧卷宗仍可查阅</span></div>
     <div id="featured"></div>
     <div class="section-line"><h2>其他未结卷宗</h2><span id="restCount" class="subtle"></span></div>
     <section id="caseGrid" class="case-grid"></section>
@@ -91,8 +94,8 @@
       <summary>怎么玩</summary>
       <ol>
  <li>读汤面：一个看似离奇的结局。</li>
-        <li>向裁判提问，只能是是非题。裁判回答 <b>是 / 否 / 无关 / 无法判断</b>。不合规的问题会被退回，不扣次数。</li>
- <li>问中关键事实，右侧卷宗栏会收录一张线索卡，真相还原度随之推进。</li>
+        <li>向裁判提问，只能是是非题。裁判回答 <b>是 / 否 / 无关 / 无法判断</b>。不合规或故事未交代的问题不扣次数。</li>
+ <li>确认关键事实会提高还原度；回答“否”的问题收进排除记录，帮你整理思路。</li>
  <li>卡住了可以用提示（共 3 次）。</li>
  <li>觉得想通了就提交推理（最多 3 次）。说中核心真相且覆盖足够多的事实即可结案。</li>
       </ol>
@@ -116,7 +119,7 @@
         <section class="story-strip paper">
           <div class="file-heading"><span class="label">本案汤面</span><span id="sceneTag"></span></div>
           <div class="story-body"><p id="surface"></p><button type="button" id="btnFold" class="fold hidden">展开全文<svg><use href="#i-chev"/></svg></button></div>
-          <div class="file-objective"><span>本局目标</span><p>通过提问，还原这段故事的完整真相。</p></div>
+          <div class="file-objective"><span>本局目标</span><p>通过提问，还原这段故事的完整真相。</p></div><button type="button" id="btnStoryReplay" class="story-replay">重听汤面 ↗</button>
         </section>
         <div id="hintList" class="hint-list"></div>
         <div class="case-file-actions">
@@ -153,6 +156,7 @@
    <div class="note-caption" id="noteCaption"></div>
           <div id="dims" class="dims"></div>
           <div id="clues" class="clues"></div>
+          <section id="excludedSection" class="excluded-section hidden"><h3>已排除 <span id="excludedCount">0</span></h3><p class="excluded-help">排除一个猜测，也是在接近真相。</p><div id="exclusions"></div></section>
    <div id="gapBox"></div>
    <div class="note-empty" id="noteEmpty"><span class="note-mark">证</span><p></p></div>
    <div id="nudges" class="nudges"></div>
@@ -182,6 +186,14 @@
       <button id="btnDoSubmit" value="ok" class="button dark">提交 <svg class="arrow"><use href="#i-arrow"/></svg></button>
     </div>
   </form>
+</dialog>
+
+<dialog id="shareDlg" class="dlg paper share-dialog">
+  <button type="button" id="btnShareClose" class="share-close" aria-label="关闭分享卡">×</button>
+  <div class="eyebrow">CASE CLOSED · 战绩卡</div><h3>只晒战绩，留下悬念。</h3>
+  <img id="shareCardPreview" alt="不含谜底的本局战绩卡" />
+  <div class="dlg-row"><button type="button" id="btnCopyChallenge" class="button secondary">复制挑战链接</button><button type="button" id="btnSaveCard" class="button dark">保存图片</button></div>
+  <p class="share-help">图片不含汤底、线索或玩家问句。和挑战链接一起分享。</p>
 </dialog>
 
 <dialog id="roomDlg" class="dlg paper room-dialog">

@@ -41,7 +41,8 @@ const norm = (q) => q.replace(/[\s，。,.?？!！、]/g, '').toLowerCase();
 
 export function findDuplicate(s, q) {
   const n = norm(q);
-  return s.asked.find((a) => a.counted && norm(a.q) === n);
+  // “未交代”也缓存，避免同一句未知问题反复调用模型；无效问题允许修正后再问。
+  return s.asked.find((a) => a.verdict !== 'invalid' && norm(a.q) === n);
 }
 
 // 泄底检查：理由里不得出现禁词，或与汤底有 5 字以上连续重合。
@@ -58,20 +59,24 @@ export function leaks(reason, puzzle) {
 export function sanitizeJudge(raw, puzzle) {
   let verdict = VERDICTS.includes(raw?.verdict) ? raw.verdict : 'unknown';
   const validIds = new Set(puzzle.facts.map((f) => f.id));
-  const matched = verdict === 'yes' && Array.isArray(raw?.matched_fact_ids) ? raw.matched_fact_ids.filter((id) => validIds.has(id)) : [];
+  const matched = verdict === 'yes' && Array.isArray(raw?.matched_fact_ids) ? [...new Set(raw.matched_fact_ids.filter((id) => validIds.has(id)))] : [];
   let reason = '';
   if (verdict === 'unknown' || verdict === 'invalid') {
-    reason = String(raw?.reason ?? '').trim().slice(0, 30);
-    if (!reason || leaks(reason, puzzle)) reason = DEFAULT_REASON[verdict];
+    // 只放行与游戏规则有关的固定理由，不能借自由文本补充故事信息。
+    const safeInvalidReasons = ['请一次只问一件事', '请换成能用“是/否”回答的单个问题', '不能直接索要汤底'];
+    reason = verdict === 'invalid' && safeInvalidReasons.includes(raw?.reason) ? raw.reason : DEFAULT_REASON[verdict];
   }
   return { verdict, matched, reason };
 }
 
 export function applyAsk(s, puzzle, q, judged, by = '你') {
-  const counted = judged.verdict !== 'invalid';
-  const entry = { q, verdict: judged.verdict, reason: judged.reason, counted, by, newClues: [], reClues: [] };
+  const counted = !['invalid', 'unknown'].includes(judged.verdict);
+  const entry = { q, verdict: judged.verdict, reason: judged.reason, counted, by, newClues: [], reClues: [], newExclusion: judged.verdict === 'no' && !s.asked.some((a) => a.verdict === 'no' && norm(a.q) === norm(q)) };
   const no = s.asked.filter((a) => a.counted).length + (counted ? 1 : 0);
-  for (const id of judged.matched) {
+  for (const id of judged.verdict === 'yes' ? (judged.matched || []) : []) {
+    const fact = puzzle.facts.find((f) => f.id === id);
+    // 关键演出事实还需问题明确提及对应概念，防止“有人”误触发“被囚禁”。
+    if (!fact || !matchesQuestionTerms(fact, q)) continue;
     if (!s.unlocked.includes(id)) {
       s.unlocked.push(id);
       s.unlockedBy[id] = q;
@@ -82,6 +87,32 @@ export function applyAsk(s, puzzle, q, judged, by = '你') {
   }
   s.asked.push(entry);
   return entry;
+}
+
+function matchesQuestionTerms(fact, question) {
+  return !fact.question_terms || fact.question_terms.every((group) => group.some((term) => question.includes(term)));
+}
+
+function sceneStage(s, puzzle) {
+  if (puzzle.id !== 'second-cake') return undefined;
+  if (s.status !== 'playing') return 'revealed';
+  // 同时校验历史来源，旧版本误收录的宽泛问题也不能提前触发新演出。
+  const confinement = puzzle.facts.find((f) => f.id === 'f3');
+  if (s.unlocked.includes('f3') && (s.unlockedBy.f3 === '（推理中说出）' || matchesQuestionTerms(confinement, s.unlockedBy.f3 || ''))) return 'locked';
+  return s.unlocked.includes('f6') ? 'presence' : 'quiet';
+}
+
+function publicExclusions(s) {
+  const seen = new Set();
+  let no = 0;
+  return s.asked.flatMap((a) => {
+    if (a.counted) no++;
+    const key = norm(a.q);
+    if (a.verdict !== 'no' || seen.has(key)) return [];
+    seen.add(key);
+    // 保留原始问句和“否”，不把带否定词的问题改写成可能相反的断言。
+    return [{ id: `excluded-${seen.size}`, q: a.q, card: a.q, label: '否', no, by: a.by || '你' }];
+  });
 }
 
 // 提交判分：core 全部“完整覆盖”，且加权（部分覆盖算一半）不低于阈值。
@@ -118,13 +149,17 @@ export function publicState(s, puzzle) {
     submitsLeft: MAX_SUBMITS - s.submits,
     progress: progress(s, puzzle),
     dims: Object.values(dims),
-    clues: s.unlocked.map((id) => {
+    clues: s.unlocked.filter((id) => puzzle.facts.some((f) => f.id === id)).map((id) => {
       const f = puzzle.facts.find((x) => x.id === id);
-      return { id, card: f.card, weight: f.weight, dim: f.dim, by: '你', q: s.unlockedBy[id], no: s.unlockedNo?.[id] ?? null };
+      const q = s.unlockedBy[id] || '', submission = q === '（推理中说出）';
+      // 即使模型过宽匹配了某项事实，公开卡片也不扩写玩家尚未问到的条件。
+      return { id, card: submission ? '这项事实已在你的推理中确认。' : q, label: '是', source: submission ? 'submission' : 'question', weight: f.weight, dim: f.dim, by: s.asked.find((a) => a.q === q)?.by || '你', q, no: s.unlockedNo?.[id] ?? null };
     }),
+    exclusions: publicExclusions(s),
+    ...(puzzle.id === 'second-cake' ? { sceneStage: sceneStage(s, puzzle) } : {}),
     nudges: puzzle.nudges,
     hints: puzzle.hints.slice(0, s.hintsUsed),
-    log: s.asked.map((a) => ({ q: a.q, verdict: a.verdict, label: VERDICT_LABEL[a.verdict], reason: a.reason, counted: a.counted, newClues: a.newClues, reClues: a.reClues || [] })),
+    log: s.asked.map((a) => ({ q: a.q, verdict: a.verdict, label: VERDICT_LABEL[a.verdict], reason: a.reason, counted: a.counted, newClues: a.newClues, reClues: a.reClues || [], newExclusion: Boolean(a.newExclusion) })),
     gaps: s.lastSubmitGaps,
     reveal: over
       ? {
