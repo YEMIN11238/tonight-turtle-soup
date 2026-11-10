@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew Tonight Soup HTTPS certificate
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/tonight-turtle-soup/app/deploy/aliyun/renew-certificate.sh
+TimeoutStartSec=300

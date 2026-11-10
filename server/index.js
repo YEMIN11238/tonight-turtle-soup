@@ -45,6 +45,11 @@ const httpErr = (status, msg) => Object.assign(new Error(msg), { status });
 const app = express();
 app.disable('x-powered-by');
 mountOpenAIRelay(app);
+if (process.env.PUBLIC_GAME_URL) {
+  const destination = new URL(process.env.PUBLIC_GAME_URL);
+  if (destination.protocol !== 'https:' || destination.username || destination.password || destination.search || destination.hash || destination.pathname !== '/') throw new Error('Invalid public game URL');
+  app.get(['/', '/index.html'], (req, res) => res.redirect(302, destination.origin + req.originalUrl));
+}
 app.use(express.json({ limit: '8kb' }));
 app.use(express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), '../public')));
 

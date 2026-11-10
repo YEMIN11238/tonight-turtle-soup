@@ -44,6 +44,14 @@ docker run --name tonight-soup -p 8080:8080 --env-file .env \
 
 ## 连接与数据
 
+当前正式入口为 `https://47.114.42.94/`，应用目录为 `/opt/tonight-turtle-soup/app`，私有运行配置在上一级的 `runtime.env`。游戏使用固定命名卷 `tonight-turtle-soup-data`，回环端口8787；公网仅由Nginx提供80/443入口。Compose把游戏限制在0.75核、512MiB内存，并限制日志大小。
+
+当前杭州主机不能直连OpenAI，因此通过原有Render服务的 `/internal/ai/responses` 转接。阿里云仅持有独立中继凭据和豆包语音Key；真实OpenAI Key保留在Render。中继默认关闭，必须配置独立的 `RELAY_SERVER_TOKEN`，只接受固定模型、结构化裁判请求、1400输出上限和最多4个并发。两端通过HTTPS传输，不能把凭据放进前端。Render空闲后可能冷启动，首次裁判响应会较慢。旧入口设置 `PUBLIC_GAME_URL` 后首页会转到新入口，并保留案件参数。
+
+`deploy/aliyun/nginx.conf` 是当前IP证书和SSE代理配置，部署时复制到 `/opt/tonight-turtle-soup/nginx/default.conf`。Nginx容器名为 `tonight-soup-web`，使用host网络访问游戏回环端口，挂载该配置、`acme`目录及只读的整个`letsencrypt`目录。当前已核验镜像为 `nginx:1.28-alpine` 与 `certbot/certbot:v5.4.0`，不要假定镜像源的 `latest` 一定是新版。
+
+IP证书有效期短，服务器的 `tonight-soup-cert-renew.timer` 每12小时检查续签。对应脚本和systemd单元在 `deploy/aliyun/`，必须安装并启用timer；续签保留HTTP挑战目录，完成后检查配置并重载Nginx。证书、账户私钥和私有运行配置均在代码目录之外，不进入仓库。新增主机时需先用Certbot的webroot模式、`--preferred-profile shortlived --ip-address <公网IP>`签发证书，再启用TLS配置。[IP证书官方说明](https://letsencrypt.org/2026/03/11/shorter-certs-certbot)
+
 - 公网入口启用 HTTPS，浏览器连麦需要安全上下文和麦克风权限。
 - 反向代理允许 `/api/rooms/:code/events` 的 SSE 长连接，关闭响应缓冲，空闲超时大于 30 秒。服务每 15 秒发送保活消息。
 - 保持单个应用进程和单个副本。房间广播、裁判调用和单人对局使用进程内状态，不能直接横向扩容。

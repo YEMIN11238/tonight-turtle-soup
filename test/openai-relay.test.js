@@ -70,6 +70,25 @@ test('上游错误与超时返回受控错误码，不回传可能带敏感内�
   }) });
   const timeoutResponse = await timeoutRequest(); assert.equal(timeoutResponse.status, 504);
   assert.deepEqual(await timeoutResponse.json(), { error: { code: 'relay_unavailable' } });
+  const oversizeRequest = await server(t, { token, apiKey, fetchImpl: async () => new Response('x'.repeat(270000), { status: 200 }) });
+  assert.equal((await oversizeRequest()).status, 502);
+});
+
+test('最多四个上游请求并发，忙碌时拒绝新增调用，结束后恢复可用', async (t) => {
+  let calls = 0, release, announce;
+  const gate = new Promise((resolve) => release = resolve), ready = new Promise((resolve) => announce = resolve);
+  const request = await server(t, { token, apiKey, fetchImpl: async () => {
+    if (++calls === 4) announce();
+    await gate; return success();
+  } });
+  const running = Array.from({ length: 4 }, () => request());
+  try {
+    await ready;
+    assert.equal((await request()).status, 429);
+    assert.equal(calls, 4);
+  } finally { release(); }
+  assert.ok((await Promise.all(running)).every((r) => r.status === 200));
+  assert.equal((await request()).status, 200);
 });
 
 test('客户端中继模式无需OpenAI密钥，只向已配置的中继发送独立凭据', async () => {
