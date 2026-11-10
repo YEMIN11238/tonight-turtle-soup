@@ -131,4 +131,4 @@ npm test
 
 新增 8 张独立场景图的文件路径与生成提示词见 [场景图清单](docs/NEW_CASE_ART.md)。
 
-背景音乐的文件说明、来源和署名保存在 [`public/audio/CREDITS.txt`](public/audio/CREDITS.txt)。当前默认音源由使用者提供；保留的两首备用曲目为 Kevin MacLeod 的 [Long note One](https://incompetech.com/music/royalty-free/index.html?Search=Search&isrc=USUAN1100418) 和 [Dark Walk](https://incompetech.com/music/royalty-free/index.html?Search=Search&isrc=USUAN1100468)，采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可。该许可不适用于当前使用者提供的音源。
+当前背景音乐由使用者提供，文件为 `user-bgm-20261108.mp3`；主持人试听使用预先合成的欢迎语音 `welcome-tonight-20261108.mp3`。音频文件说明见 [`public/audio/CREDITS.txt`](public/audio/CREDITS.txt)。

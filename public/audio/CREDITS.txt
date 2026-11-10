@@ -1,29 +1,11 @@
-今晚喝什么汤 · 背景音乐文件说明
+今晚喝什么汤 · 音频文件说明
 
 当前启用曲目（2026-11-08 更新）
 音源由用户提供，原始文件名：M8000048GKcR3Uxye2.mp3
 游戏内文件：user-bgm-20261108.mp3
 音频文件保持用户提供时的原样，仅在播放时调整音量、循环与交叉淡入。
-下方 CC BY 4.0 许可属于之前保留的备用曲目，不适用于当前用户提供的音源。
+语音播报或同伴说话时，游戏会自动降低背景音乐。
 
-------------------------------
-此前曲目（已停用，保留原署名）
-取得日期：2026-11-07
-
-"Long note One" Kevin MacLeod (incompetech.com)
-Licensed under Creative Commons: By Attribution 4.0 License
-https://creativecommons.org/licenses/by/4.0/
-作品页面：https://incompetech.com/music/royalty-free/index.html?Search=Search&isrc=USUAN1100418
-作者音源：https://incompetech.com/music/royalty-free/mp3-royaltyfree/Long%20Note%20One.mp3
-本地文件：long-note-one.mp3
-ISRC：USUAN1100418
-
-"Dark Walk" Kevin MacLeod (incompetech.com)
-Licensed under Creative Commons: By Attribution 4.0 License
-https://creativecommons.org/licenses/by/4.0/
-作品页面：https://incompetech.com/music/royalty-free/index.html?Search=Search&isrc=USUAN1100468
-作者音源：https://incompetech.com/music/royalty-free/mp3-royaltyfree/Dark%20Walk.mp3
-本地文件：dark-walk.mp3
-ISRC：USUAN1100468
-
-两个原始 MP3 文件均保持下载时的原样。本游戏仅在播放时调节音量、循环和交叉淡入；语音播报时自动降低背景音乐。界面中文氛围标签为本游戏所加，不是作者原曲名。作者不为本游戏背书。
+主持人欢迎语音
+游戏内文件：welcome-tonight-20261108.mp3
+由豆包「悬疑解说 2.0」合成，用于声音设置中的主持人试听。
