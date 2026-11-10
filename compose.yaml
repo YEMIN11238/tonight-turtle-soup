@@ -5,10 +5,17 @@ services:
     image: tonight-turtle-soup:current
     restart: unless-stopped
     init: true
+    # Keep headroom for the existing applications on a 2 vCPU / 4 GB host.
+    cpus: 0.75
+    mem_limit: 512m
+    mem_reservation: 128m
+    memswap_limit: 512m
+    pids_limit: 128
     env_file:
       - ${SOUP_ENV_FILE:-./.env}
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=256
       PORT: 8080
       DATA_DIR: /app/data
       DATA_PERSISTENT: "1"
@@ -17,6 +24,11 @@ services:
       - "127.0.0.1:${SOUP_PORT:-8787}:8080"
     volumes:
       - soup-data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/meta').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
