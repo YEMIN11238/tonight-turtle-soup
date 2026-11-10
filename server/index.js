@@ -20,19 +20,22 @@ for (const p of PUZZLES) {
   if (errs.length) throw new Error(errs.join('\n'));
 }
 
-const sessions = await createSessionStore({ validPuzzle: (id) => Boolean(getPuzzle(id)) });
+const retentionDays = Number(process.env.SESSION_TTL_DAYS || 30);
+if (!Number.isFinite(retentionDays) || retentionDays < 1 || retentionDays > 365) throw new Error('Invalid session retention');
+const sessions = await createSessionStore({ validPuzzle: (id) => Boolean(getPuzzle(id)), persistent: process.env.DATA_PERSISTENT === '1', ttl: retentionDays * 86400_000 });
 let usage = sessions.usage();
-function spend(s) {
+async function spend(s) {
   const today = new Date().toDateString();
   if (usage.day !== today) usage = { day: today, calls: 0 };
   if (usage.calls >= DAILY_LLM_LIMIT) throw httpErr(429, '今日体验名额已用完，明天再来吧');
   if (s.llmCalls >= PER_SESSION_LLM_LIMIT) throw httpErr(429, '本局调用次数已达上限');
   usage.calls++;
   s.llmCalls++;
-  return sessions.saveUsage(usage);
+  const saved = await sessions.saveUsage(usage);
+  if (saved?.day === usage.day) usage.calls = Math.max(usage.calls, saved.calls);
 }
 
-// 距最后一次成功操作或继续对局 6 小时后过期，服务重启可从 DATA_DIR 恢复。
+// 固定数据目录独立于代码部署，继续游玩延长保留期。
 setInterval(() => {
   sessions.prune().catch((e) => console.error('Session persistence:', e.code));
 }, 600_000).unref();
@@ -89,6 +92,7 @@ app.get('/api/meta', (_req, res) =>
     needCode: Boolean(ACCESS_CODE),
     rooms: true,
     speech: speechMeta(),
+    storage: sessions.metadata,
     lanUrl: (() => { const ip = Object.values(networkInterfaces()).flat().find((a) => a.family === 'IPv4' && !a.internal && /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address)); return ip ? `http://${ip.address}:${PORT}` : null; })(),
     puzzles: PUZZLES.map((p) => ({ id: p.id, title: p.title, tag: p.tag, difficulty: p.difficulty, surface: p.surface, collection: p.collection || 'horror' })),
   }),
@@ -161,3 +165,9 @@ app.post('/api/giveup', route((req) => withSession(req, async (s, p) => {
 })));
 
 const server = app.listen(PORT, () => console.log(`海龟汤 demo 已启动: http://localhost:${server.address().port}  模式: ${llmMode()}${ACCESS_CODE ? '  口令已开启' : ''}`));
+for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
+  const deadline = setTimeout(() => process.exit(1), 70_000); deadline.unref();
+  server.close(async () => { roomService.flush(); await sessions.flush(); await sessions.close(); clearTimeout(deadline); process.exit(0); });
+  roomService.close();
+  server.closeIdleConnections();
+});

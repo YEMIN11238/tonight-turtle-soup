@@ -1,0 +1,29 @@
+name: tonight-turtle-soup
+services:
+  game:
+    build: .
+    image: tonight-turtle-soup:current
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${SOUP_ENV_FILE:-./.env}
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATA_DIR: /app/data
+      DATA_PERSISTENT: "1"
+      SESSION_TTL_DAYS: "30"
+    ports:
+      - "127.0.0.1:${SOUP_PORT:-8787}:8080"
+    volumes:
+      - soup-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/meta').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 75s
+volumes:
+  soup-data:
+    name: tonight-turtle-soup-data

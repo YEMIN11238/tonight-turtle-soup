@@ -5,9 +5,16 @@
 #viewRoom .case-atmosphere-layer>.case-atmosphere-previous{transition:opacity 1.4s ease}
 #viewRoom[data-atmosphere="presence"] .case-atmosphere-layer>img{transform:scale(1.035);transform-origin:78% 43%;filter:sepia(.2) saturate(.65) brightness(.68)}
 #viewRoom[data-atmosphere="locked"] .case-atmosphere-layer>img{filter:sepia(.2) saturate(.8) brightness(.75)}
+#viewRoom[data-atmosphere-case="rainy-elevator"][data-atmosphere="watched"] .case-atmosphere-layer>img{transform:scale(1.018);transform-origin:85% 45%;filter:sepia(.18) saturate(.72) brightness(.74)}
+#viewRoom[data-atmosphere-case="rainy-elevator"][data-atmosphere="followed"] .case-atmosphere-layer>img{transform:scale(1.055);transform-origin:85% 45%;filter:sepia(.16) saturate(.63) brightness(.65)}
+#viewRoom[data-atmosphere-case="after-curtain"][data-atmosphere="unpowered"] .case-atmosphere-layer>img{filter:sepia(.13) saturate(.62) brightness(.72)}
+#viewRoom[data-atmosphere-case="after-curtain"][data-atmosphere="below"] .case-atmosphere-layer>img{transform:scale(1.028);transform-origin:78% 65%;filter:sepia(.18) saturate(.68) brightness(.75)}
 .case-atmosphere-light{position:absolute;inset:0;background:radial-gradient(ellipse at 79% 20%,#e9a35023,transparent 33%);opacity:.6;pointer-events:none}
 #viewRoom[data-atmosphere="presence"] .case-atmosphere-light{opacity:.35}
 #viewRoom[data-atmosphere="locked"] .case-atmosphere-light{opacity:.8}
+#viewRoom[data-atmosphere-case="rainy-elevator"][data-atmosphere="followed"] .case-atmosphere-light{opacity:.22}
+#viewRoom[data-atmosphere-case="after-curtain"][data-atmosphere="unpowered"] .case-atmosphere-light{opacity:.1}
+#viewRoom[data-atmosphere-case="after-curtain"][data-atmosphere="below"] .case-atmosphere-light{background:radial-gradient(ellipse at 79% 64%,#e9a3501c,transparent 28%);opacity:.5}
 .case-atmosphere-layer.changing .case-atmosphere-light{animation:case-lamp-settle 2.8s ease both}
 #viewRoom .case-atmosphere-note{display:flex;align-items:center;flex:none;position:relative;gap:14px;min-height:72px;padding:8px 16px 8px 8px;margin:0;border:1px solid #b48b4e40;border-left:2px solid #bd975e88;border-radius:2px;background:linear-gradient(100deg,#171009cc,#23170b82);box-shadow:0 6px 22px #08040222;backdrop-filter:blur(8px);pointer-events:none}
 #viewRoom .case-atmosphere-note[hidden]{display:none}

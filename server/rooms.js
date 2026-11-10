@@ -19,15 +19,27 @@ export function mountRooms(app, { judge, grade, spend, accessCode = '', dataDire
       r.busy = null; rooms.set(r.code, r);
     }
   } catch {}
-  let saveTimer;
+  let saveTimer, closing = false;
+  const graceTimers = new Set();
+  function writeNow() {
+    try {
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      const data = [...rooms.values()].map((r) => ({ ...r, busy: null, players: [...r.players.values()].map((p) => ({ ...p, connected: false, speaking: false, voiceJoined: false })) }));
+      writeFileSync(file + '.tmp', JSON.stringify(data), { mode: 0o600 }); renameSync(file + '.tmp', file);
+    } catch {
+      throw Object.assign(new Error('房间存档暂时无法保存，请稍后重试'), { status: 503, code: 'ROOM_STORE_WRITE' });
+    }
+  }
+  function flush() {
+    clearTimeout(saveTimer); saveTimer = null;
+    writeNow();
+  }
   function save() {
     clearTimeout(saveTimer);
+    if (closing) { writeNow(); return; }
     saveTimer = setTimeout(() => {
-      try {
-        mkdirSync(dir, { recursive: true, mode: 0o700 });
-        const data = [...rooms.values()].map((r) => ({ ...r, busy: null, players: [...r.players.values()].map((p) => ({ ...p, connected: false, speaking: false, voiceJoined: false })) }));
-        writeFileSync(file + '.tmp', JSON.stringify(data), { mode: 0o600 }); renameSync(file + '.tmp', file);
-      } catch (e) { console.error('Room persistence failed:', e.code || 'write'); }
+      saveTimer = null;
+      try { writeNow(); } catch (e) { console.error('Room persistence failed:', e.code); }
     }, 100); saveTimer.unref();
   }
   function chat(r, name, text, system = false) {
@@ -106,13 +118,15 @@ export function mountRooms(app, { judge, grade, spend, accessCode = '', dataDire
       clearInterval(ping); set.delete(res);
       if (!set.size && r.players.has(p.id)) {
         p.connected = false; p.speaking = false; p.voiceJoined = false; broadcast(r, false);
+        if (closing) return;
         const grace = setTimeout(() => {
+          graceTimers.delete(grace);
           if (p.connected || !r.players.has(p.id)) return;
           r.players.delete(p.id); members.delete(p.id); chat(r, '系统', `${p.name} 已离线，座位已空出`, true);
           if (!r.players.size) { rooms.delete(r.code); streams.delete(r.code); save(); return; }
           if (r.hostId === p.id) { const next = [...r.players.values()].find((x) => x.connected) || r.players.values().next().value; r.hostId = next.id; next.ready = true; }
           broadcast(r);
-        }, 90000); grace.unref();
+        }, 90000); grace.unref(); graceTimers.add(grace);
       }
     });
   }));
@@ -198,5 +212,16 @@ export function mountRooms(app, { judge, grade, spend, accessCode = '', dataDire
     res.clearCookie('ts_room_' + r.code, { path: '/api/rooms/' + r.code }); save(); res.json({ ok: true });
   }));
   const cleanup = setInterval(() => { for (const [code, r] of rooms) if (Date.now() - r.createdAt > 6 * 3600_000) { for (const set of streams.get(code)?.values() || []) for (const s of set) s.end(); streams.delete(code); rooms.delete(code); } }, 600_000); cleanup.unref();
-  return { speechState(req) { const r = roomOf(req.body.room); playerOf(req, r); return game(r); }, close() { clearInterval(cleanup); clearTimeout(saveTimer); for (const members of streams.values()) for (const set of members.values()) for (const res of set) res.end(); } };
+  return {
+    speechState(req) { const r = roomOf(req.body.room); playerOf(req, r); return game(r); },
+    flush,
+    close() {
+      closing = true; clearInterval(cleanup);
+      for (const timer of graceTimers) clearTimeout(timer);
+      graceTimers.clear();
+      for (const members of streams.values()) for (const set of members.values()) for (const res of set) res.end();
+      streams.clear();
+      flush();
+    },
+  };
 }

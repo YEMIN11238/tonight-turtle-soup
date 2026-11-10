@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, readFile, writeFile, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, readFile, writeFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { fileURLToPath } from 'node:url';
 import { createSessionStore, SESSION_TTL } from '../server/session-store.js';
 import { newSession, applyAsk } from '../server/game.js';
 import { PUZZLES } from '../server/puzzles.js';
@@ -71,14 +72,16 @@ test('落盘失败不发布新状态，恢复目录后可以重试，损坏文�
   assert.equal(await readFile(join(directory, 'solo-sessions.json'), 'utf8'), '{broken');
 });
 
-test('HTTP 单人续局：并发提示不丢失，服务重启后状态一致', { timeout: 20_000 }, async (t) => {
-  const directory = await temporary(t);
+test('持久目录跨部署续局：更换代码目录和重启后仍恢复同一局', { timeout: 20_000 }, async (t) => {
+  const root = await temporary(t), directory = join(root, 'persistent-data');
+  const firstRelease = join(root, 'release-a'), secondRelease = join(root, 'release-b');
+  await Promise.all([mkdir(firstRelease), mkdir(secondRelease)]);
   const children = new Set();
   t.after(async () => { for (const child of children) { if (child.exitCode === null) { child.kill(); await once(child, 'exit'); } } });
-  async function start() {
-    const child = spawn(process.execPath, ['server/index.js'], {
-      cwd: new URL('..', import.meta.url),
-      env: { ...process.env, PORT: '0', DATA_DIR: directory, OPENAI_API_KEY: '', ANTHROPIC_API_KEY: '', VOLC_SPEECH_API_KEY: '', ACCESS_CODE: '' },
+  async function start(release) {
+    const child = spawn(process.execPath, [fileURLToPath(new URL('../server/index.js', import.meta.url))], {
+      cwd: release,
+      env: { ...process.env, PORT: '0', DATA_DIR: directory, DATA_PERSISTENT: '1', SESSION_TTL_DAYS: '', OPENAI_API_KEY: '', ANTHROPIC_API_KEY: '', VOLC_SPEECH_API_KEY: '', ACCESS_CODE: '' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     children.add(child);
@@ -96,16 +99,33 @@ test('HTTP 单人续局：并发提示不丢失，服务重启后状态一致', 
     const res = await fetch(base + '/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal(res.status, 200); return res.json();
   }
-  const first = await start();
+  const first = await start(firstRelease);
   const session = await post(first.base, 'new', { puzzleId: 'blind-meal' });
   const hints = await Promise.all([post(first.base, 'hint', { sid: session.sid }), post(first.base, 'hint', { sid: session.sid })]);
   assert.deepEqual(hints.map((h) => h.hintsLeft).sort(), [1, 2]);
   first.child.kill(); await once(first.child, 'exit'); children.delete(first.child);
-  const second = await start();
+  await rm(firstRelease, { recursive: true });
+  const second = await start(secondRelease);
   const resumed = await (await fetch(second.base + '/api/state?sid=' + session.sid)).json();
   assert.equal(resumed.hintsLeft, 1);
   assert.equal(resumed.status, 'playing'); assert.equal(resumed.remaining, 40);
   assert.equal(resumed.reveal, undefined);
   const ended = await post(second.base, 'giveup', { sid: session.sid });
   assert.equal(ended.status, 'gaveup');
+});
+
+test('30天保存期与持久化标记必须由部署明确确认', async (t) => {
+  const directory = await temporary(t); let time = Date.now();
+  const local = await createSessionStore({ directory, now: () => time });
+  assert.deepEqual(local.metadata, { kind: 'file', durable: false, retentionDays: 30 });
+  const s = newSession(PUZZLES[0]); await local.commit(s); await local.close();
+  time += 3 * 24 * 3600_000;
+  const persistent = await createSessionStore({ directory, persistent: true, now: () => time });
+  assert.ok(persistent.get(s.id));
+  assert.deepEqual(persistent.metadata, { kind: 'file', durable: true, retentionDays: 30 });
+  await persistent.commit(persistent.get(s.id));
+  time += SESSION_TTL - 1;
+  assert.ok(persistent.get(s.id));
+  time += 1;
+  assert.equal(persistent.get(s.id), null);
 });

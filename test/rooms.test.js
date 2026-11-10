@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { mountRooms } from '../server/rooms.js';
 import { PUZZLES } from '../server/puzzles.js';
@@ -81,6 +81,56 @@ test('多人动作等待异步额度落盘；写入失败不调用模型并解�
     assert.equal(retried.body.busy, null); assert.equal(judgeCalls, 1);
   } finally {
     stream.abort(); rooms.close(); server.closeAllConnections(); await new Promise((r) => server.close(r));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('房间动作后立即flush与close，重建服务保留最新共享进度', async () => {
+  const dir = mkdtempSync(tmpdir() + '/soup-room-drain-');
+  const running = [];
+  const options = {
+    dataDirectory: dir, spend: async () => {},
+    judge: async () => ({ verdict: 'yes', matched_fact_ids: ['f1'] }),
+    grade: async () => ({ covered: [], partial: [], comment: '' }),
+  };
+  async function start() {
+    const app = express(); app.use(express.json());
+    const rooms = mountRooms(app, options), server = app.listen(0);
+    await new Promise((resolve) => server.once('listening', resolve));
+    const service = { rooms, server, base: 'http://127.0.0.1:' + server.address().port };
+    running.push(service); return service;
+  }
+  async function post(service, path, cookie, body = {}) {
+    const response = await fetch(service.base + '/api/rooms' + path, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body),
+    });
+    assert.equal(response.status, 200);
+    return { body: await response.json(), cookie: response.headers.get('set-cookie')?.split(';')[0] || cookie };
+  }
+  const stream = new AbortController();
+  try {
+    const first = await start(), host = await post(first, '', '', { name: '续局测试', puzzleId: 'blind-meal' });
+    const path = '/' + host.body.code;
+    const events = await fetch(first.base + '/api/rooms' + path + '/events', { headers: { cookie: host.cookie }, signal: stream.signal });
+    assert.equal(events.status, 200);
+    await post(first, path + '/start', host.cookie);
+    await post(first, path + '/ask', host.cookie, { q: '他是盲人吗？' });
+    first.rooms.flush();
+    assert.equal(JSON.parse(readFileSync(dir + '/rooms.json', 'utf8'))[0].session.asked.length, 1);
+    await post(first, path + '/hint', host.cookie);
+    // No debounce wait: shutdown must commit the action that just returned.
+    first.rooms.close(); first.rooms.flush();
+    first.server.closeAllConnections(); await new Promise((resolve) => first.server.close(resolve));
+    running.splice(running.indexOf(first), 1);
+    const second = await start();
+    const restored = (await post(second, path + '/join', host.cookie, { name: '续局测试' })).body;
+    assert.equal(restored.phase, 'playing'); assert.equal(restored.busy, null);
+    assert.equal(restored.game.remaining, 39); assert.equal(restored.game.hintsLeft, 2);
+    assert.equal(restored.game.log[0].q, '他是盲人吗？'); assert.equal(restored.game.clues.length, 1);
+    assert.equal(restored.meId, host.body.meId);
+  } finally {
+    stream.abort();
+    for (const item of running) { item.rooms.close(); item.server.closeAllConnections(); await new Promise((resolve) => item.server.close(resolve)); }
     rmSync(dir, { recursive: true, force: true });
   }
 });

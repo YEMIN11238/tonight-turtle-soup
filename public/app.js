@@ -7,6 +7,7 @@ import { RoomClient } from './room-client.js';
 import { RoomVoice } from './room-voice.js';
 import { turnBookPage } from './book-turn.js';
 import { readRecords, saveRecord, challengeText, makeShareCard } from './case-records.js';
+import { buildReview, recommendNext } from './case-review.js';
 import { createCaseAtmosphere, atmosphereArt } from './case-atmosphere.js';
 
 const $ = (s) => document.querySelector(s);
@@ -65,6 +66,7 @@ matchMedia('(max-width:760px)').addEventListener('change', (e) => { if (e.matche
 let chatVersion = '', chatUnread = 0;
 function paintRoom() {
   const d = room.data;
+  paintSavePolicy();
   document.body.classList.toggle('room-connected', Boolean(d));
   document.body.classList.toggle('chat-collapsed', chatCollapsed);
   $('#roomDock').classList.toggle('hidden', !d);
@@ -217,6 +219,10 @@ function setMode() {
   $('#footMode').textContent = offline ? '离线演示模式 · 判定为关键词匹配，仅供预览界面' : '';
   $('#entryMode').textContent = offline ? '离线演示 · 裁判采用关键词匹配' : 'AI 裁判在线 · 40 次提问机会';
   $('#voiceName').textContent = META?.speech?.available ? `${META.speech.name} · 豆包语音` : '系统语音';
+  paintSavePolicy();
+}
+function paintSavePolicy() {
+  $('#savePolicy').textContent = room.active ? '多人房间内共同保存进度' : META?.storage?.durable ? `进度自动保存 · 继续游玩后保留 ${META.storage.retentionDays} 天` : '本局自动保存';
 }
 
 // ================= 房间入口 =================
@@ -607,7 +613,7 @@ function render(st, { flashIds = [], newIds = [] } = {}) {
     .map((c, i) => `
       <article class="evidence-card ${newIds.includes(c.id) ? 'new' : ''} ${flashIds.includes(c.id) ? 'flash' : ''}" data-fid="${esc(c.id)}">
  <div class="evidence-top"><span>${pad2(i + 1)} / ${esc(c.dim)}</span><span>+${c.weight}%</span></div>
-        <p>${esc(c.card)}</p><span class="evidence-verdict">${c.source === 'submission' ? '推理中已确认' : '裁判确认：是'}</span>
+        <p>${esc(c.card)}</p><span class="evidence-verdict">${c.source === 'submission' ? '推理中已确认' : `裁判确认：${esc(c.label || '是')}`}</span>
         <div class="evidence-source">${c.no ? `第 ${pad2(c.no)} 次提问` : '来自已提交的推理'}</div>
       </article>`)
     .join('');
@@ -864,8 +870,9 @@ function showEnd(st) {
   const a = artOf(st.puzzle.id);
   const meta = STATUS[st.status] || STATUS.gaveup;
   const r = st.reveal;
-  const turningPoint = st.log.find((l) => l.newClues?.length);
-  const recommended = horrorPuzzles().find((p) => p.id !== st.puzzle.id && !played()[p.id]) || horrorPuzzles().find((p) => p.id !== st.puzzle.id);
+  const review = buildReview(st);
+  const recommendation = recommendNext(META.puzzles, st, played());
+  const recommended = recommendation?.puzzle;
   const scoreCell = st.stats.score != null ? `<div><strong>${st.stats.score}%</strong><span>推理得分</span></div>` : `<div><strong>${st.stats.submits}</strong><span>提交次数</span></div>`;
   $('#endCase').innerHTML = `
     <div class="end-art">${artBox(st.puzzle.id, st.puzzle.title, { eager: true, pos: a.endPos, source: atmosphereArt(st)?.src })}
@@ -881,13 +888,14 @@ function showEnd(st) {
         <div><strong>${st.progress}%</strong><span>真相还原度</span></div>
         ${scoreCell}
       </div>
-      <div class="record-summary">${record?.best ? `<strong>本机最佳：${record.best.used} 问结案 · 使用 ${record.best.hints} 次提示</strong>` : '本局已经归档，下一次试着用更少的问题还原真相。'}${turningPoint ? `<p>首次突破 · <span class="turning-point">${esc(turningPoint.q)}</span></p>` : ''}${recommended ? `<p>下一宗推荐 · ${esc(recommended.title)}</p>` : ''}</div>
+      <div class="record-summary">${record?.best ? `<strong>本机最佳：${record.best.used} 问结案 · 使用 ${record.best.hints} 次提示</strong>` : '本局已经归档，下一次试着用更少的问题还原真相。'}${recommended ? `<p>下一宗 · ${esc(recommended.title)}<br><span>${esc(recommendation.reason)}</span></p>` : '<p>当前卷宗已全部翻开，可以回档案库重温。</p>'}</div>
+      ${review ? `<section class="end-review"><h2>你的推理路线</h2><p class="review-summary">${esc(review.summary)}</p>${review.breakthroughs.length ? `<ol class="review-breakthroughs">${review.breakthroughs.map((item, i) => `<li><span>${i === 0 ? '首次突破' : '继续接近'} · 第 ${pad2(item.no)} 问</span><p>${esc(item.q)}</p><small>裁判回答「${esc(item.label)}」 · 确认 ${item.count} 项关键事实</small></li>`).join('')}</ol>` : '<p class="review-empty">这次还没有通过提问确认关键事实，可以对照汤底回看问法。</p>'}${review.exclusions.length ? `<details class="review-exclusions"><summary>你排除的猜测 · ${review.exclusions.length} 条</summary>${review.exclusions.map((item) => `<p><span>第 ${pad2(item.no)} 问 · 否</span>${esc(item.q)}</p>`).join('')}</details>` : ''}<p class="review-footnote">${[review.stats.repeatedFact ? `重新确认已知线索 ${review.stats.repeatedFact} 次` : '', review.stats.invalid ? `调整问法 ${review.stats.invalid} 次` : '', review.stats.unknown ? `遇到故事未交代的问题 ${review.stats.unknown} 次` : ''].filter(Boolean).join(' · ') || '每个问题，都是这次推理的一部分。'}</p></section>` : ''}
       <section class="end-section"><h3><span class="step-number">1</span>汤面</h3><p class="truth">${esc(st.puzzle.surface)}</p></section>
       <section class="end-section"><h3><span class="step-number">2</span>完整汤底</h3><p class="truth">${esc(r.truth)}</p></section>
       ${r.found.length ? `<section class="end-section"><h3><span class="step-number">3</span>你已确认的事实</h3><ul class="fact-list found">${r.found.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></section>` : ''}
       ${r.missed.length ? `<section class="end-section"><h3><span class="step-number">${r.found.length ? 4 : 3}</span>${st.status === 'won' ? '没有问到、但已在推理中补全的部分' : '还没有挖到的部分'}</h3><ul class="fact-list missed">${r.missed.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></section>` : ''}
       <div class="end-actions">
-        <button type="button" class="button dark" id="btnAgain">再开一宗 <svg class="arrow"><use href="#i-arrow"/></svg></button>
+        <button type="button" class="button dark" id="btnAgain">${recommended ? '下一宗 · ' + esc(recommended.title) : '回到档案库'} <svg class="arrow"><use href="#i-arrow"/></svg></button>
         <button type="button" class="button secondary" id="btnReview">回看问答</button>
         <button type="button" class="button quiet" id="btnShare"><svg><use href="#i-share"/></svg>分享战绩</button>
       </div>
@@ -897,8 +905,8 @@ function showEnd(st) {
     if (room.active) { if (!room.host) return toast('等待房主开启下一宗卷宗'); room.action('reset').catch((e) => toast(e.message)); return; }
     localStorage.removeItem('ts_sid');
     S = null;
-    const next = recommended || horrorPuzzles()[0];
-    showLobby(next.id).catch((err) => toast(err.message));
+    if (recommended) showLobby(recommended.id).catch((err) => toast(err.message));
+    else showHome().catch((err) => toast(err.message));
   };
   $('#btnReview').onclick = () => {
     sceneFor = null;

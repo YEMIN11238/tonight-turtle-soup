@@ -1,21 +1,37 @@
 // 只消费服务器已经公开的叙事阶段，不从进度百分比猜测隐藏剧情。
-const STAGES = Object.freeze({
-  quiet: { src: 'assets/second-cake-quiet.webp', alt: '两只熄灭蜡烛的蛋糕，桌后是一扇普通的旧木门', pos: '64% 50%', title: '', detail: '' },
-  presence: { src: 'assets/second-cake-quiet.webp', alt: '昏暗的桌边，视线停在紧闭的旧木门上', pos: '70% 50%', title: '门后，有人。', detail: '你已确认地下室里有活人。' },
-  locked: { src: 'assets/second-cake-locked.webp', alt: '灯光照亮旧木门上的外锁，两只蛋糕留在桌边', pos: '66% 50%', title: '有人被困在这里。', detail: '你已确认那个人无法自由离开。' },
-  revealed: { src: 'assets/second-cake-revealed.webp', alt: '木门已经打开，门后空椅隐约可见，蛋糕仍在桌上', pos: '70% 50%', title: '门，终于打开了。', detail: '这段故事已经有了答案。' },
+const CASE_STAGES = Object.freeze({
+  'second-cake': {
+    quiet: { src: 'assets/second-cake-quiet.webp', alt: '两只熄灭蜡烛的蛋糕，桌后是一扇普通的旧木门', pos: '64% 50%', title: '', detail: '' },
+    presence: { src: 'assets/second-cake-quiet.webp', alt: '昏暗的桌边，视线停在紧闭的旧木门上', pos: '70% 50%', title: '门后，有人。', detail: '你已确认地下室里有活人。' },
+    locked: { src: 'assets/second-cake-locked.webp', alt: '灯光照亮旧木门上的外锁，两只蛋糕留在桌边', pos: '66% 50%', title: '有人被困在这里。', detail: '你已确认那个人无法自由离开。' },
+    revealed: { src: 'assets/second-cake-revealed.webp', alt: '木门已经打开，门后空椅隐约可见，蛋糕仍在桌上', pos: '70% 50%', title: '门，终于打开了。', detail: '这段故事已经有了答案。' },
+  },
+  'rainy-elevator': {
+    quiet: { src: 'assets/rainy-elevator.webp', alt: '雨夜老楼里关闭的铜色电梯门', pos: '64% 50%', title: '', detail: '' },
+    watched: { src: 'assets/rainy-elevator-watched.webp', alt: '铜色电梯门旁的按钮面板与紧闭门缝', pos: '66% 50%', thumbPos: '87% 45%', title: '他知道那个楼层。', detail: '你已确认他早已知道她真实住在哪一层。' },
+    followed: { src: 'assets/rainy-elevator-watched.webp', alt: '低光下的电梯按钮与紧闭门缝', pos: '73% 50%', thumbPos: '87% 45%', title: '这次相遇，早有来路。', detail: '你已确认他此前尾随过她。' },
+    revealed: { src: 'assets/rainy-elevator-revealed.webp', alt: '同一座老楼里打开的空电梯门', pos: '68% 50%', title: '那声招呼，有了另一种意思。', detail: '这段故事已经有了答案。' },
+  },
+  'after-curtain': {
+    quiet: { src: 'assets/after-curtain.webp', alt: '散场后的空剧院与紧闭的旧幕布', pos: '65% 50%', title: '', detail: '' },
+    unpowered: { src: 'assets/after-curtain-unpowered.webp', alt: '空舞台一角，断电的录音设备没有亮灯', pos: '67% 50%', thumbPos: '90% 60%', title: '断电以后，掌声仍在。', detail: '你已确认掌声不来自已关闭的录音设备。' },
+    below: { src: 'assets/after-curtain-below.webp', alt: '旧舞台台板与下方紧闭的检修门', pos: '67% 50%', thumbPos: '80% 60%', title: '台板下面，有人。', detail: '你已确认舞台下有活人。' },
+    revealed: { src: 'assets/after-curtain-below.webp', alt: '旧舞台下幽深的检修空间与木板门', pos: '73% 50%', thumbPos: '80% 60%', title: '再听一次，已经不同。', detail: '这段故事已经有了答案。' },
+  },
 });
+const stagesFor = (st) => st?.puzzle && Object.hasOwn(CASE_STAGES, st.puzzle.id) ? CASE_STAGES[st.puzzle.id] : null;
 
 export function atmosphereStage(st) {
-  if (st?.puzzle?.id !== 'second-cake') return null;
-  const stage = Object.hasOwn(STAGES, st.sceneStage) ? st.sceneStage : 'quiet';
+  const stages = stagesFor(st);
+  if (!stages) return null;
+  const stage = Object.hasOwn(stages, st.sceneStage) ? st.sceneStage : 'quiet';
   // 对旧会话 / 错误响应也不在正在推理时使用结案画面。
-  return st.status === 'playing' && stage === 'revealed' ? 'quiet' : stage;
+  return stage === 'revealed' && !['won', 'lost', 'gaveup'].includes(st.status) ? 'quiet' : stage;
 }
 
 export function atmosphereArt(st) {
   const stage = atmosphereStage(st);
-  return stage ? { ...STAGES[stage] } : null;
+  return stage ? { ...stagesFor(st)[stage] } : null;
 }
 
 export function createCaseAtmosphere({ sound } = {}) {
@@ -92,7 +108,7 @@ class CaseAtmosphere {
 
   update(st) {
     const next = atmosphereStage(st);
-    const session = next ? st.sid : null;
+    const session = next ? `${st.puzzle.id}:${st.sid}` : null;
     const previous = this.session === session ? this.stage : null;
     const changed = previous !== null && next !== previous;
     if (session !== this.session) {
@@ -112,14 +128,16 @@ class CaseAtmosphere {
       this.note.hidden = true;
       if (this.cinematic) this.cinematic.hidden = true;
       delete room.dataset.atmosphere;
+      delete room.dataset.atmosphereCase;
       this.stopSound();
       return;
     }
     room.dataset.atmosphere = next;
+    room.dataset.atmosphereCase = st.puzzle.id;
     this.paint(next);
     if (changed && next !== 'quiet' && this.view === 'room' && !document.hidden && !this.heard.has(next)) {
       this.heard.add(next);
-      this.live.textContent = STAGES[next].detail;
+      this.live.textContent = stagesFor(st)[next].detail;
       this.note.classList.remove('arriving');
       this.layer.classList.remove('changing');
       if (!this.reduced.matches) {
@@ -133,16 +151,19 @@ class CaseAtmosphere {
   }
 
   paint(stage) {
-    const art = STAGES[stage];
+    const art = stagesFor(this.state)[stage];
     if (this.cinematic) this.cinematic.style.backgroundImage = `url("${art.src}")`;
     this.note.hidden = stage === 'quiet';
     this.note.querySelector('p').textContent = art.title;
     this.note.querySelector('small').textContent = art.detail;
     const thumb = this.note.querySelector('img');
     thumb.src = art.src;
-    thumb.style.objectPosition = stage === 'locked' ? '73% 47%' : '84% 50%';
+    thumb.style.objectPosition = art.thumbPos || (stage === 'locked' ? '73% 47%' : '84% 50%');
     // 初始背景由 setScene 使用 atmosphereArt；这个第二层只负责柔和的交叉淡入。
-    if (this.imageSource === art.src) return;
+    if (this.imageSource === art.src) {
+      this.layer.querySelector('img').style.objectPosition = art.pos;
+      return;
+    }
     this.imageSource = art.src;
     const sequence = ++this.sequence;
     const image = new Image();
@@ -158,7 +179,7 @@ class CaseAtmosphere {
         this.layer.insertBefore(previous, this.layer.querySelector('.case-atmosphere-light'));
       }
       target.src = art.src;
-      target.style.objectPosition = art.pos;
+      target.style.objectPosition = stagesFor(this.state)?.[this.stage]?.pos || art.pos;
       this.layer.dataset.ready = 'true';
       this.applyVisibility();
       if (previous) {
@@ -237,7 +258,34 @@ class CaseAtmosphere {
       this.audioNodes.add(oscillator);
       oscillator.onended = () => { this.audioNodes.delete(oscillator); oscillator.disconnect(); envelope.disconnect(); };
     };
-    if (stage === 'presence') {
+    const id = this.state?.puzzle?.id;
+    if (id === 'rainy-elevator') {
+      // 低频电机余响和短促继电器触点，与木门/舞台声保持区别。
+      if (stage === 'watched') {
+        note(0, 63, 1.25, .12, 'triangle', 48);
+        note(.62, 360, .085, .085, 'triangle', 190);
+      } else if (stage === 'followed') {
+        note(0, 58, 1.7, .14, 'triangle', 38);
+        note(.35, 280, .11, .07, 'sine', 135);
+        note(1.03, 230, .15, .065, 'sine', 110);
+      } else if (stage === 'revealed') {
+        note(0, 117, 1.6, .09, 'triangle', 43);
+        note(.38, 245, .45, .04, 'sine', 95);
+      }
+    } else if (id === 'after-curtain') {
+      // 木台板的短、闷敲击；不在声源揭晓前给出人物、方位或求救节奏。
+      if (stage === 'unpowered') {
+        note(0, 310, .075, .075, 'triangle', 175);
+        note(.72, 83, .2, .16, 'sine', 44);
+      } else if (stage === 'below') {
+        note(0, 92, .24, .2, 'sine', 42);
+        note(.48, 86, .27, .15, 'sine', 40);
+        note(1.18, 74, .45, .1, 'triangle', 35);
+      } else if (stage === 'revealed') {
+        note(0, 79, .3, .12, 'sine', 39);
+        note(.74, 64, 1.15, .085, 'sine', 31);
+      }
+    } else if (stage === 'presence') {
       note(0, 92, .28, .32, 'sine', 56);
       note(.52, 86, .34, .23, 'sine', 50);
     } else if (stage === 'locked') {
@@ -276,6 +324,6 @@ class CaseAtmosphere {
     this.note?.remove();
     this.cinematic?.remove();
     const room = document.querySelector('#viewRoom');
-    if (room) delete room.dataset.atmosphere;
+    if (room) { delete room.dataset.atmosphere; delete room.dataset.atmosphereCase; }
   }
 }

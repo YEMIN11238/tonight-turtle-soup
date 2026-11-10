@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { getDataDirectory } from './data-directory.js';
 
-export const SESSION_TTL = 6 * 3600_000;
+export const SESSION_TTL = 30 * 24 * 3600_000;
 const clone = (value) => structuredClone(value);
 const usable = (s) => s && typeof s.id === 'string' && /^[a-f0-9-]{36}$/i.test(s.id)
   && typeof s.puzzleId === 'string' && Number.isFinite(s.createdAt)
@@ -14,20 +14,25 @@ const usable = (s) => s && typeof s.id === 'string' && /^[a-f0-9-]{36}$/i.test(s
 
 // Only server-owned state is accepted. The browser receives an opaque session ID,
 // never a client-editable save containing facts, answers, or score authority.
-export async function createSessionStore({ directory, now = Date.now, ttl = SESSION_TTL, validPuzzle = () => true } = {}) {
+export async function createSessionStore({ directory, now = Date.now, ttl = SESSION_TTL, validPuzzle = () => true, persistent = false } = {}) {
+  if (!Number.isFinite(ttl) || ttl <= 0) throw new Error('Invalid session retention');
   const dir = getDataDirectory(directory), file = join(dir, 'solo-sessions.json');
   let sessions = new Map(), usage = { day: new Date(now()).toDateString(), calls: 0 }, queue = Promise.resolve();
   const active = (s) => now() - (s.updatedAt ?? s.createdAt) < ttl;
-  try {
-    const raw = JSON.parse(await readFile(file, 'utf8'));
-    if (raw?.version !== 1 || !Array.isArray(raw.sessions)) throw new Error('format');
-    sessions = new Map(raw.sessions.filter((s) => usable(s) && validPuzzle(s.puzzleId) && active(s)).map((s) => [s.id, s]));
-    if (typeof raw.usage?.day === 'string' && Number.isInteger(raw.usage.calls) && raw.usage.calls >= 0) usage = raw.usage;
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      // Do not silently overwrite a damaged save with an empty catalog.
+  const importFile = async () => {
+    let raw;
+    try { raw = JSON.parse(await readFile(file, 'utf8')); }
+    catch (error) {
+      if (error.code === 'ENOENT') return null;
       throw Object.assign(new Error('单人存档无法读取，请检查数据目录后重启服务'), { code: 'SESSION_STORE_READ' });
     }
+    if (raw?.version !== 1 || !Array.isArray(raw.sessions)) throw Object.assign(new Error('单人存档无法读取，请检查数据目录后重启服务'), { code: 'SESSION_STORE_READ' });
+    return raw;
+  };
+  const raw = await importFile();
+  if (raw) {
+    sessions = new Map(raw.sessions.filter((s) => usable(s) && validPuzzle(s.puzzleId) && active(s)).map((s) => [s.id, s]));
+    if (typeof raw.usage?.day === 'string' && Number.isInteger(raw.usage.calls) && raw.usage.calls >= 0) usage = raw.usage;
   }
   const serialize = (job) => {
     const pending = queue.then(job);
@@ -53,6 +58,8 @@ export async function createSessionStore({ directory, now = Date.now, ttl = SESS
   }
   const retained = () => new Map([...sessions].filter(([, s]) => active(s)));
   return {
+    // Only the deployment operator can assert that this directory survives release replacement.
+    metadata: { kind: 'file', durable: persistent === true, retentionDays: ttl / (24 * 3600_000) },
     get(id) { const s = sessions.get(id); return s && active(s) ? clone(s) : null; },
     usage() { return clone(usage); },
     commit(session) {
@@ -68,19 +75,22 @@ export async function createSessionStore({ directory, now = Date.now, ttl = SESS
     },
     saveUsage(value) {
       const nextUsage = clone(value);
+      if (typeof nextUsage?.day !== 'string' || !Number.isInteger(nextUsage.calls) || nextUsage.calls < 0) return Promise.reject(new Error('Invalid usage'));
       return serialize(async () => {
         const next = retained();
         await write(next, nextUsage);
         sessions = next; usage = nextUsage;
+        return clone(usage);
       });
     },
     prune() {
       return serialize(async () => {
         const next = retained();
-        if (next.size === sessions.size) return;
-        await write(next, usage); sessions = next;
+        if (next.size !== sessions.size) await write(next, usage);
+        sessions = next;
       });
     },
     flush() { return queue; },
+    async close() { await queue; },
   };
 }

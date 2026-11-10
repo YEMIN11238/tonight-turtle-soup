@@ -9,10 +9,13 @@ test('题库合法：权重和为100、有core、id不重复', () => {
   for (const x of PUZZLES) assert.deepEqual(validatePuzzle(x), []);
 });
 
-test('sanitizeJudge：非法verdict降级、非yes不解锁、过滤不存在的id', () => {
+test('sanitizeJudge：非法verdict降级、旧命中字段只用于yes、过滤不存在的id', () => {
   assert.equal(G.sanitizeJudge({ verdict: 'maybe' }, p).verdict, 'unknown');
   assert.deepEqual(G.sanitizeJudge({ verdict: 'no', matched_fact_ids: ['f1'] }, p).matched, []);
   assert.deepEqual(G.sanitizeJudge({ verdict: 'yes', matched_fact_ids: ['f1', 'zzz'] }, p).matched, ['f1']);
+  assert.deepEqual(G.sanitizeJudge({ verdict: 'yes', matched_fact_ids: ['f1'], confirmed_fact_ids: ['f1', 'f2', 'zzz'] }, p).matched, ['f1', 'f2']);
+  assert.deepEqual(G.sanitizeJudge({ verdict: 'no', matched_fact_ids: ['f2'], confirmed_fact_ids: ['f1', 'zzz'] }, p).matched, [], '未标注的正向事实不能由no解锁');
+  for (const verdict of ['unknown', 'invalid', 'irrelevant']) assert.deepEqual(G.sanitizeJudge({ verdict, matched_fact_ids: ['f1'], confirmed_fact_ids: ['f2'] }, p).matched, []);
 });
 
 test('泄底的理由被替换为默认文案', () => {

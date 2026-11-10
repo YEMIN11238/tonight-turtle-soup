@@ -19,6 +19,21 @@
 .record-summary strong{font-weight:600;color:#5b3d23}
 .record-summary p{margin-top:7px}
 .record-summary .turning-point{font-family:var(--font-title);color:#5b5041}
+.end-review{margin:24px 0;padding:20px 0;border-top:1px solid #a58c6655;border-bottom:1px solid #a58c6655}
+.end-review h2{font:24px/1.6 var(--font-title);color:#4a3621;letter-spacing:2px}
+.review-summary{font-size:13px;line-height:1.9;color:#766246;margin-top:8px}
+.review-breakthroughs{padding:0;list-style:none;margin-top:20px;border-left:1px solid #ac9166}
+.review-breakthroughs li{position:relative;padding:0 0 21px 21px}
+.review-breakthroughs li:last-child{padding-bottom:0}
+.review-breakthroughs li:before{content:'';position:absolute;left:-4px;top:5px;width:7px;height:7px;background:#9f7747;border-radius:50%}
+.review-breakthroughs li>span{font-size:11px;color:#8c6b41}
+.review-breakthroughs li>p{font:17px/1.9 var(--font-title);margin:6px 0;color:#453b2d;overflow-wrap:anywhere}
+.review-breakthroughs li>small{font-size:11px;color:#837354}
+.review-exclusions{margin-top:18px;font-size:13px;color:#6e593a}
+.review-exclusions summary{cursor:pointer;min-height:40px;line-height:40px}
+.review-exclusions p{padding:10px 14px;margin:8px 0;border-left:2px solid #ae9370;background:#bba27c15;font:14px/1.8 var(--font-title)}
+.review-exclusions p>span{display:block;font:10px/1.8 sans-serif;color:#917756}
+.review-footnote,.review-empty{margin-top:17px;font-size:12px;line-height:1.9;color:#8b7759}
 .share-dialog{width:min(500px,calc(100vw - 26px));max-height:94dvh;overflow:auto;padding:25px}
 .share-close{position:absolute;right:15px;top:12px;background:none;border:0;font-size:26px;color:#806a4b;width:38px;height:38px}
 .share-dialog h3{font-size:23px;margin:10px 0 18px}

@@ -55,11 +55,13 @@ export function leaks(reason, puzzle) {
   return false;
 }
 
-// 把模型输出收敛成受信任的结构。模型只给 verdict / matched / reason，其余由服务端决定。
+// no 只能确认题库明确标注的负向事实，防止“不是十八楼”被补成“是十二楼”。
 export function sanitizeJudge(raw, puzzle) {
   let verdict = VERDICTS.includes(raw?.verdict) ? raw.verdict : 'unknown';
-  const validIds = new Set(puzzle.facts.map((f) => f.id));
-  const matched = verdict === 'yes' && Array.isArray(raw?.matched_fact_ids) ? [...new Set(raw.matched_fact_ids.filter((id) => validIds.has(id)))] : [];
+  const validIds = new Set(puzzle.facts.filter((f) => verdict !== 'no' || f.confirm_on_no === true).map((f) => f.id));
+  const legacy = verdict === 'yes' && Array.isArray(raw?.matched_fact_ids) ? raw.matched_fact_ids : [];
+  const confirmed = ['yes', 'no'].includes(verdict) && Array.isArray(raw?.confirmed_fact_ids) ? raw.confirmed_fact_ids : [];
+  const matched = [...new Set([...legacy, ...confirmed].filter((id) => validIds.has(id)))];
   let reason = '';
   if (verdict === 'unknown' || verdict === 'invalid') {
     // 只放行与游戏规则有关的固定理由，不能借自由文本补充故事信息。
@@ -73,10 +75,10 @@ export function applyAsk(s, puzzle, q, judged, by = '你') {
   const counted = !['invalid', 'unknown'].includes(judged.verdict);
   const entry = { q, verdict: judged.verdict, reason: judged.reason, counted, by, newClues: [], reClues: [], newExclusion: judged.verdict === 'no' && !s.asked.some((a) => a.verdict === 'no' && norm(a.q) === norm(q)) };
   const no = s.asked.filter((a) => a.counted).length + (counted ? 1 : 0);
-  for (const id of judged.verdict === 'yes' ? (judged.matched || []) : []) {
+  for (const id of ['yes', 'no'].includes(judged.verdict) ? (judged.matched || []) : []) {
     const fact = puzzle.facts.find((f) => f.id === id);
     // 关键演出事实还需问题明确提及对应概念，防止“有人”误触发“被囚禁”。
-    if (!fact || !matchesQuestionTerms(fact, q)) continue;
+    if (!fact || judged.verdict === 'no' && fact.confirm_on_no !== true || !matchesQuestionTerms(fact, q)) continue;
     if (!s.unlocked.includes(id)) {
       s.unlocked.push(id);
       s.unlockedBy[id] = q;
@@ -94,12 +96,23 @@ function matchesQuestionTerms(fact, question) {
 }
 
 function sceneStage(s, puzzle) {
-  if (puzzle.id !== 'second-cake') return undefined;
+  if (!['second-cake', 'rainy-elevator', 'after-curtain'].includes(puzzle.id)) return undefined;
   if (s.status !== 'playing') return 'revealed';
-  // 同时校验历史来源，旧版本误收录的宽泛问题也不能提前触发新演出。
-  const confinement = puzzle.facts.find((f) => f.id === 'f3');
-  if (s.unlocked.includes('f3') && (s.unlockedBy.f3 === '（推理中说出）' || matchesQuestionTerms(confinement, s.unlockedBy.f3 || ''))) return 'locked';
-  return s.unlocked.includes('f6') ? 'presence' : 'quiet';
+  const confirmed = (id) => {
+    const fact = puzzle.facts.find((f) => f.id === id), source = s.unlockedBy?.[id] || '';
+    // 同时校验历史来源，旧版本误收录的宽泛问题也不能提前触发新演出。
+    return Boolean(fact && s.unlocked.includes(id) && (source === '（推理中说出）' || matchesQuestionTerms(fact, source)));
+  };
+  if (puzzle.id === 'second-cake') {
+    if (confirmed('f3')) return 'locked';
+    return s.unlocked.includes('f6') ? 'presence' : 'quiet';
+  }
+  if (puzzle.id === 'rainy-elevator') {
+    if (confirmed('f4')) return 'followed';
+    return confirmed('f3') ? 'watched' : 'quiet';
+  }
+  if (confirmed('f3')) return 'below';
+  return confirmed('f1') ? 'unpowered' : 'quiet';
 }
 
 function publicExclusions(s) {
@@ -152,11 +165,13 @@ export function publicState(s, puzzle) {
     clues: s.unlocked.filter((id) => puzzle.facts.some((f) => f.id === id)).map((id) => {
       const f = puzzle.facts.find((x) => x.id === id);
       const q = s.unlockedBy[id] || '', submission = q === '（推理中说出）';
+      const entry = s.asked.find((a) => a.q === q && ['yes', 'no'].includes(a.verdict) && (a.newClues?.includes(id) || a.reClues?.includes(id)))
+        || s.asked.find((a) => a.q === q && ['yes', 'no'].includes(a.verdict));
       // 即使模型过宽匹配了某项事实，公开卡片也不扩写玩家尚未问到的条件。
-      return { id, card: submission ? '这项事实已在你的推理中确认。' : q, label: '是', source: submission ? 'submission' : 'question', weight: f.weight, dim: f.dim, by: s.asked.find((a) => a.q === q)?.by || '你', q, no: s.unlockedNo?.[id] ?? null };
+      return { id, card: submission ? '这项事实已在你的推理中确认。' : q, label: submission ? '已确认' : VERDICT_LABEL[entry?.verdict] || '是', source: submission ? 'submission' : 'question', weight: f.weight, dim: f.dim, by: entry?.by || '你', q, no: s.unlockedNo?.[id] ?? null };
     }),
     exclusions: publicExclusions(s),
-    ...(puzzle.id === 'second-cake' ? { sceneStage: sceneStage(s, puzzle) } : {}),
+    ...(['second-cake', 'rainy-elevator', 'after-curtain'].includes(puzzle.id) ? { sceneStage: sceneStage(s, puzzle) } : {}),
     nudges: puzzle.nudges,
     hints: puzzle.hints.slice(0, s.hintsUsed),
     log: s.asked.map((a) => ({ q: a.q, verdict: a.verdict, label: VERDICT_LABEL[a.verdict], reason: a.reason, counted: a.counted, newClues: a.newClues, reClues: a.reClues || [], newExclusion: Boolean(a.newExclusion) })),
