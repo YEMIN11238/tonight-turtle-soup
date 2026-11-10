@@ -1,6 +1,20 @@
-// API key 仅从服务端环境读取，始终请求 OpenAI 官方端点。
-export const openaiConfigured = Boolean(process.env.OPENAI_API_KEY);
+// Direct mode uses the local server key; relay mode uses only its independent
+// service credential and keeps the actual API key on the relay server.
+const relayURL = process.env.OPENAI_RELAY_URL || '';
+const relayToken = process.env.OPENAI_RELAY_TOKEN || '';
+export const openaiRelayConfigured = Boolean(relayURL && relayToken);
+export const openaiConfigured = Boolean(process.env.OPENAI_API_KEY || openaiRelayConfigured);
 export const openaiModel = process.env.OPENAI_MODEL || 'gpt-5.4-mini';
+
+function endpoint() {
+  if (!relayURL) return { url: 'https://api.openai.com/v1/responses', token: process.env.OPENAI_API_KEY, timeout: 40_000 };
+  let url;
+  try { url = new URL(relayURL); } catch {}
+  const local = url && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (!url || !relayToken || url.username || url.password || url.search || url.hash || url.pathname !== '/internal/ai/responses'
+    || url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) throw Object.assign(new Error('AI 中继配置不完整，请检查服务器设置'), { status: 503 });
+  return { url: url.href, token: relayToken, timeout: 50_000 };
+}
 
 export async function openaiJSON(name, schema, instructions, input) {
   const body = {
@@ -9,9 +23,10 @@ export async function openaiJSON(name, schema, instructions, input) {
     text: { format: { type: 'json_schema', name, strict: true, schema: { ...schema, additionalProperties: false } } },
   };
   if (/^gpt-[56]/.test(openaiModel)) body.reasoning = { effort: 'low' };
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST', signal: AbortSignal.timeout(40_000),
-    headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
+  const target = endpoint();
+  const res = await fetch(target.url, {
+    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(target.timeout),
+    headers: { Authorization: 'Bearer ' + target.token, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   const result = await res.json();

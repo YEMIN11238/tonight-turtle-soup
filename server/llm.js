@@ -1,6 +1,6 @@
 // Claude 调用：裁判 + 判分。没有 API key 时退回到离线规则（仅供看界面）。
 import Anthropic from '@anthropic-ai/sdk';
-import { openaiConfigured, openaiModel, openaiJSON } from './openai.js';
+import { openaiConfigured, openaiRelayConfigured, openaiModel, openaiJSON } from './openai.js';
 import { leaks } from './game.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
@@ -9,7 +9,7 @@ const client = hasKey
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, baseURL: process.env.ANTHROPIC_BASE_URL || undefined, timeout: 30_000, maxRetries: 2 })
   : null;
 
-export const llmMode = () => openaiConfigured ? `openai:${openaiModel}` : hasKey ? `claude:${MODEL}` : 'offline';
+export const llmMode = () => openaiConfigured ? `${openaiRelayConfigured ? 'openai-relay' : 'openai'}:${openaiModel}` : hasKey ? `claude:${MODEL}` : 'offline';
 
 function factBlock(p, forJudge = false) {
   return p.facts.map((f) => `- ${f.id}［${f.dim}］${f.text}${forJudge ? ` ${f.confirm_on_no === true ? '【允许由no完整确认】' : '【仅允许由yes完整确认】'}` : ''}`).join('\n');

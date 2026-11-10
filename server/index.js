@@ -9,6 +9,7 @@ import { mountRooms } from './rooms.js';
 import { networkInterfaces } from 'node:os';
 import { mountSpeech, speechMeta } from './tts.js';
 import { createSessionStore } from './session-store.js';
+import { mountOpenAIRelay } from './openai-relay.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const ACCESS_CODE = process.env.ACCESS_CODE || ''; // 设置后，访客需输入口令才能开局（防止链接外传刷 API）
@@ -43,6 +44,7 @@ setInterval(() => {
 const httpErr = (status, msg) => Object.assign(new Error(msg), { status });
 const app = express();
 app.disable('x-powered-by');
+mountOpenAIRelay(app);
 app.use(express.json({ limit: '8kb' }));
 app.use(express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), '../public')));
 
