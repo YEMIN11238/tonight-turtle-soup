@@ -217,14 +217,10 @@
 </section>
 
 <section id="audioPanel" class="sound-panel hidden" role="dialog" aria-label="音乐与声音设置">
-  <header><h2>夜色与声音</h2><button type="button" id="btnAudioClose" aria-label="关闭声音设置">×</button></header>
-  <label class="sound-switch"><span><b>背景音乐</b><small>低声、缓慢的悬疑氛围</small></span><input id="musicEnabled" type="checkbox" /></label>
-  <label class="sound-field" for="musicTrack">氛围曲目<select id="musicTrack"></select></label>
-  <label class="sound-field" for="musicVolume"><span>背景音量 <output id="musicVolumeText">22%</output></span><input id="musicVolume" type="range" min="0" max="100" step="1" value="22" /></label>
-  <div class="music-play-row"><span id="musicStatus" role="status">开始游戏后播放</span><button type="button" id="btnMusicPlay" class="button secondary small">试听 / 播放</button></div>
-  <label class="sound-switch voice-switch"><span><b>主持人语音</b><small>播报汤面和裁判回答，可单独关闭</small></span><input id="voiceSetting" type="checkbox" /></label>
-  <div class="music-play-row"><span id="voiceName">正在连接主持人…</span><button type="button" id="btnVoicePreview" class="button secondary small">试听主持人</button></div>
-  <p class="music-credit"><a id="musicSource" href="audio/CREDITS.txt" target="_blank" rel="noopener"><span id="musicCreditTitle"></span></a><br>用户提供音源 · <a href="audio/CREDITS.txt" target="_blank" rel="noopener">文件说明</a><br>语音播报时音乐会自动放轻，离开标签页时暂停。</p>
+  <header><h2>声音</h2><button type="button" id="btnAudioClose" aria-label="关闭声音设置">×</button></header>
+  <label class="sound-switch"><b>背景音乐</b><input id="musicEnabled" type="checkbox" /></label>
+  <label class="sound-switch voice-switch"><b>旁白</b><input id="voiceSetting" type="checkbox" /></label>
+  <p id="musicStatus" class="sound-status" role="status">点击页面后播放</p>
 </section>
 <div id="toast" class="toast hidden" role="status"></div>
 <script src="app.js" type="module"></script>

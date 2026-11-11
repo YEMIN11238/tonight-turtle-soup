@@ -3,28 +3,19 @@
 .music-indicator{display:none;position:absolute;right:7px;bottom:8px;width:4px;height:4px;border-radius:50%;background:#cabba9}
 .audio-settings.is-playing .music-indicator{display:block}
 .intro-sound-controls{display:flex;align-items:center;gap:2px}
-.sound-panel{position:fixed;top:71px;right:max(22px,calc((100vw - 1640px)/2));width:324px;max-width:calc(100% - 28px);max-height:calc(100dvh - 92px);overflow:auto;padding:20px 22px;background:linear-gradient(135deg,#2f261c,#1f1810);border:1px solid #a98e5d88;border-radius:4px;box-shadow:0 20px 70px #0009;z-index:100;color:#e4dbc7;font-size:13px}
+.sound-panel{position:fixed;top:71px;right:max(22px,calc((100vw - 1640px)/2));width:256px;max-width:calc(100% - 28px);max-height:calc(100dvh - 92px);overflow:auto;padding:14px 18px;background:linear-gradient(135deg,#2f261c,#1f1810);border:1px solid #a98e5d88;border-radius:4px;box-shadow:0 20px 70px #0009;z-index:100;color:#e4dbc7;font-size:13px}
 .sound-panel>header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding-bottom:13px;border-bottom:1px solid #b596613d}
-.sound-panel h2{font-size:21px;letter-spacing:2px}
+.sound-panel h2{font-size:17px;letter-spacing:2px}
 .sound-panel>header button{width:34px;height:34px;border:0;background:transparent;color:#cbbb99;font-size:24px}
-.sound-switch{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:18px 0}
+.sound-switch{display:flex;align-items:center;justify-content:space-between;gap:15px;min-height:54px;padding:12px 0;cursor:pointer}
 .sound-switch b{font-size:14px;font-weight:500;color:#e4d3b0}
-.sound-switch small{display:block;color:#b5a98e;font-size:11px;line-height:1.8;margin-top:4px}
 .sound-switch input{width:18px;height:18px;accent-color:#c3a76b;flex:none}
-.sound-field{display:block;color:#cdbd9b;font-size:12px;margin-bottom:16px}
-.sound-field>span{display:flex;align-items:center;justify-content:space-between}
-.sound-field select{display:block;width:100%;margin-top:8px;color:#e3d5b6;background:#1e160d;border:1px solid #b5966166;border-radius:3px;min-height:43px;padding:0 10px;font:inherit;font-size:13px}
-.sound-field input[type=range]{width:100%;margin:12px 0 0;accent-color:#b59661;min-height:22px}
-.sound-field output{font-family:Georgia,serif;color:#e7d2a7}
-.music-play-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 0 17px;font-size:11px;color:#bfb292}
-.music-play-row .button{font-size:11px;min-height:38px;padding:0 12px}
-.voice-switch{border-top:1px solid #b596613d;padding-top:17px}
-.music-credit{border-top:1px solid #b5966129;padding-top:14px;font-size:10px;line-height:1.9;color:#a89b83}
-.music-credit a{color:#c9b68d;text-decoration:underline;text-underline-offset:3px}
+.voice-switch{border-top:1px solid #b5966129}
+.sound-status{border-top:1px solid #b5966129;padding-top:10px;margin:0;color:#b5a98e;font-size:11px;line-height:1.7}
 .reveal-kicker{display:block;font-family:var(--font-body);font-size:11px;color:#c6aa79;letter-spacing:4px;margin-bottom:24px}
 .intro-text.reveal-text{font-size:25px;line-height:2.1;max-width:900px;letter-spacing:1px}
 @media(max-width:760px){
-  .sound-panel{top:65px;right:14px;width:324px;padding:17px 18px}
+  .sound-panel{top:65px;right:14px;width:256px;padding:12px 16px}
   .intro-header .intro-sound-controls{gap:0}
   .intro-header .intro-sound-controls .icon-btn{width:34px;height:40px}
   .intro-text.reveal-text{font-size:21px;line-height:1.95}

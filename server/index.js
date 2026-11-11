@@ -51,7 +51,12 @@ if (process.env.PUBLIC_GAME_URL) {
   app.get(['/', '/index.html'], (req, res) => res.redirect(302, destination.origin + req.originalUrl));
 }
 app.use(express.json({ limit: '8kb' }));
-app.use(express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), '../public')));
+app.use(express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), '../public'), {
+  setHeaders(res, file) {
+    // 带日期版本号的固定音频可复用缓存，重新打开页面时不再等待下载。
+    if (/\/audio\/[^/]+-\d{8}\.mp3$/.test(file)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  },
+}));
 
 // 同一会话的请求串行处理，避免并发提问导致次数和线索状态错乱
 const locks = new Map();

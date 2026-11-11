@@ -1,7 +1,7 @@
 // 今晚喝什么汤 · 前端。所有展示数据来自服务端真实状态，不硬编码任何线索。
 import { artOf, imgSrc } from './cases.js';
 import { openingParts, openingDelay, revealParts } from './opening-flow.js';
-import { MUSIC, gameSound } from './sound.js';
+import { gameSound } from './sound.js';
 import { Narrator } from './narrator.js';
 import { RoomClient } from './room-client.js';
 import { RoomVoice } from './room-voice.js';
@@ -218,7 +218,6 @@ function setMode() {
   $('#mode').textContent = label;
   $('#footMode').textContent = offline ? '离线演示模式 · 判定为关键词匹配，仅供预览界面' : '';
   $('#entryMode').textContent = offline ? '离线演示 · 裁判采用关键词匹配' : 'AI 裁判在线 · 40 次提问机会';
-  $('#voiceName').textContent = META?.speech?.available ? `${META.speech.name} · 豆包语音` : '系统语音';
   paintSavePolicy();
 }
 function paintSavePolicy() {
@@ -1001,15 +1000,9 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // 音乐和语音是两条独立音轨；只在玩家操作后开始播放。
-$('#musicTrack').innerHTML = MUSIC.map((t) => `<option value="${t.id}">${esc(t.label)}</option>`).join('');
 function paintSound() {
   $('#musicEnabled').checked = gameSound.enabled;
-  $('#musicTrack').value = gameSound.trackId;
-  $('#musicVolume').value = Math.round(gameSound.volume * 100);
-  $('#musicVolumeText').textContent = `${Math.round(gameSound.volume * 100)}%`;
-  $('#musicSource').href = gameSound.track.source;
-  $('#musicCreditTitle').textContent = gameSound.track.title + (gameSound.track.author ? ` · ${gameSound.track.author}` : '');
-  $('#musicStatus').textContent = !gameSound.enabled ? '背景音乐已关闭' : gameSound.error || (gameSound.playing ? '正在播放' : gameSound.unlocked ? '音乐已暂停 / 等待播放' : '点击页面后播放');
+  $('#musicStatus').textContent = !gameSound.enabled ? '音乐已关闭' : gameSound.error ? '点击页面重试播放' : gameSound.playing ? '音乐播放中' : gameSound.unlocked ? '音乐已暂停' : '点击页面后播放';
   $('#btnAudio').classList.toggle('is-playing', gameSound.playing);
 }
 let audioOpener = null;
@@ -1031,19 +1024,7 @@ $('#btnAudioClose').addEventListener('click', () => { closeSound(); audioOpener?
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#audioPanel, #btnAudio, #btnIntroAudio')) closeSound(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#audioPanel').classList.contains('hidden')) { closeSound(); audioOpener?.focus(); } });
 $('#musicEnabled').addEventListener('change', (e) => gameSound.setEnabled(e.target.checked));
-$('#musicTrack').addEventListener('change', (e) => gameSound.setTrack(e.target.value));
-$('#musicVolume').addEventListener('input', (e) => gameSound.setVolume(Number(e.target.value) / 100));
-$('#btnMusicPlay').addEventListener('click', () => gameSound.setEnabled(true));
 $('#voiceSetting').addEventListener('change', (e) => { if (e.target.checked !== voiceOn) toggleVoice(); });
-let previewing = false;
-$('#btnVoicePreview').addEventListener('click', async () => {
-  if (previewing) { stopSpeech(); return; }
-  stopSpeech();
-  narrator.unlock();
-  const btn = $('#btnVoicePreview'); previewing = true; btn.textContent = '停止试听';
-  try { await narrator.say('今晚喝什么汤？灯已亮起，故事才刚刚开始。请提出你的第一个问题。', { preview: true }); }
-  finally { previewing = false; btn.textContent = '试听主持人'; }
-});
 $('#log').addEventListener('click', (e) => { const b = e.target.closest('[data-replay]'); if (b) { if (!voiceOn) toggleVoice(); speak(b.dataset.replay); } });
 $('#btnIntroReplay').addEventListener('click', () => {
   if (view !== 'intro' || introCursor >= introParts.length) return;

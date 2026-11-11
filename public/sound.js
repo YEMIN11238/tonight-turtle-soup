@@ -5,17 +5,17 @@ export const MUSIC = Object.freeze([
 const clamp = (v) => Math.max(0, Math.min(1, Number(v) || 0));
 class GameSound {
   constructor() {
-    let saved = {};
-    try { saved = JSON.parse(localStorage.getItem('ts_music') || '{}') || {}; } catch {}
     // 每次进入默认有音乐；本次访问里主动关闭后，翻页或切换场景不会重新打开。
     this.enabled = true;
-    this.volume = Number.isFinite(saved.volume) ? clamp(saved.volume) : .22;
-    this.trackId = MUSIC.some((t) => t.id === saved.track) ? saved.track : MUSIC[0].id;
+    this.volume = .22;
+    this.trackId = MUSIC[0].id;
     this.phase = 'lobby'; this.ducked = false; this.conversation = false; this.unlocked = false;
     this.active = 0; this.sequence = 0; this.fading = false; this.frame = 0; this.error = ''; this.starting = null;
     this.decks = [0, 1].map((i) => {
       const a = document.createElement('audio');
-      a.id = 'bgm' + i; a.preload = 'none'; a.loop = true; a.volume = 0;
+      a.id = 'bgm' + i; a.preload = i === 0 ? 'auto' : 'none'; a.loop = true; a.volume = 0;
+      // 先准备首路音乐，首次操作只负责解锁播放，避免点击后才开始下载。
+      if (i === 0) { a.src = this.track.src; a.dataset.track = this.trackId; }
       a.setAttribute('aria-hidden', 'true'); a.hidden = true; document.body.append(a);
       a.addEventListener('timeupdate', () => {
         if (this.decks[this.active] === a && !this.fading && this.enabled && !document.hidden && a.duration > 6 && a.currentTime >= a.duration - 1.7) this.crossfade(this.trackId, 1600);
@@ -23,6 +23,7 @@ class GameSound {
       for (const event of ['playing', 'pause', 'waiting', 'canplay', 'error']) a.addEventListener(event, () => this.notify());
       return a;
     });
+    this.decks[0].load();
     // 浏览器需要一次真实操作才能播放有声媒体。任何首次点击/按键均可解锁，
     // 避免只有“开始游戏”某条进入路径有音乐；播放被拦截时也可随下次操作重试。
     const onGesture = (event) => {
